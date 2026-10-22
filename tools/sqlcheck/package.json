@@ -1,0 +1,15 @@
+{
+  "name": "iptv-sqlcheck",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Validador SQL de IPTV Manager sobre PGlite (no requiere Docker).",
+  "scripts": {
+    "test": "node run.mjs",
+    "mutate": "node mutate.mjs",
+    "introspect": "node introspect.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11"
+  }
+}

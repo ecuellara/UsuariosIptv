@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPTV Manager — preview de diseño (v1.0)</title>
+<meta name="description" content="Preview de diseño: dashboard, renovación y vista móvil. Autocontenido y offline.">
+<style>
+/* =============================================================================
+   TOKENS — copia literal de docs/04-diseno/tokens.css
+   Nada de este archivo usa un color, espacio o radio fuera de estos tokens.
+   ============================================================================= */
+:root{
+  --gray-0:#ffffff;--gray-25:#fafbfc;--gray-50:#f5f7f9;--gray-100:#eceff3;
+  --gray-200:#dde2e9;--gray-300:#c4cbd5;--gray-400:#98a2af;--gray-500:#6c7683;
+  --gray-600:#545c68;--gray-700:#3e4550;--gray-800:#2a2f38;--gray-900:#191d24;--gray-950:#0e1116;
+  --indigo-50:#eef0ff;--indigo-100:#e0e4ff;--indigo-200:#c6cdfe;--indigo-300:#a5b0fc;
+  --indigo-400:#818cf8;--indigo-500:#6366f1;--indigo-600:#4338ca;--indigo-700:#3730a3;
+  --indigo-800:#2d287f;--indigo-900:#241f63;
+  --green-50:#e9f6ee;--green-100:#cfebd9;--green-300:#7fcb9b;--green-400:#4ade80;
+  --green-500:#22c55e;--green-600:#15803d;--green-700:#166534;--green-800:#14532d;--green-900:#052e16;
+  --amber-50:#fdf6e3;--amber-100:#faebc8;--amber-300:#f0ce85;--amber-400:#fbbf24;
+  --amber-600:#b45309;--amber-700:#92400e;--amber-800:#7c3407;
+  --orange-50:#fdede3;--orange-100:#fad8c4;--orange-300:#f5b48c;--orange-400:#fb923c;
+  --orange-600:#c2410c;--orange-700:#9a3412;--orange-800:#7c2d12;
+  --red-50:#fcecec;--red-100:#f8d6d6;--red-300:#efa0a0;--red-400:#f87171;--red-500:#e5484d;
+  --red-600:#dc2626;--red-700:#b91c1c;--red-800:#991b1b;
+  --sky-50:#e8f3f9;--sky-100:#cfe6f2;--sky-300:#7dd3fc;--sky-400:#38bdf8;
+  --sky-600:#0369a1;--sky-700:#075985;--sky-800:#0c4a6e;
+
+  --font-sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --font-mono:"Cascadia Mono",Consolas,ui-monospace,"SF Mono",monospace;
+  --text-xs:.75rem;--text-sm:.8125rem;--text-base:.875rem;--text-lg:1rem;--text-xl:1.125rem;
+  --text-2xl:1.375rem;--text-3xl:1.75rem;--text-4xl:2.125rem;--text-5xl:2.75rem;
+  --weight-regular:400;--weight-medium:500;--weight-semibold:600;--weight-bold:700;
+  --tracking-tight:-.015em;--tracking-caps:.06em;
+  --space-0-5:2px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;
+  --space-6:24px;--space-7:28px;--space-8:32px;--space-10:40px;--space-12:48px;
+  --space-14:56px;--space-16:64px;--space-20:80px;
+  --radius-xs:4px;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--radius-full:9999px;
+  --shadow-xs:0 1px 2px rgb(14 17 22 / .04);
+  --shadow-sm:0 1px 3px rgb(14 17 22 / .07),0 1px 2px rgb(14 17 22 / .04);
+  --shadow-md:0 4px 12px -2px rgb(14 17 22 / .10),0 2px 4px -2px rgb(14 17 22 / .06);
+  --shadow-lg:0 16px 40px -8px rgb(14 17 22 / .18),0 4px 12px -4px rgb(14 17 22 / .10);
+  --shadow-sheet:-16px 0 48px -12px rgb(14 17 22 / .22);
+  --duration-instant:80ms;--duration-fast:120ms;--duration-normal:180ms;--duration-slow:260ms;
+  --ease-standard:cubic-bezier(.2,0,0,1);--ease-out:cubic-bezier(.16,1,.3,1);
+  --layout-sidebar-w:236px;--layout-sidebar-w-lg:252px;--layout-topbar-h:56px;
+  --layout-content-max:1320px;--layout-gutter:var(--space-4);--layout-gutter-lg:var(--space-8);
+  --layout-sheet-w:560px;--layout-modal-w:520px;--layout-login-w:400px;--nav-item-h:36px;
+  --control-h-sm:32px;--control-h-md:40px;--control-h-lg:48px;--control-min-touch:44px;
+  --control-font-size:var(--text-lg);--row-h:52px;--row-h-compact:40px;
+  --z-sticky:100;--z-nav:200;--z-overlay:400;--z-sheet:450;
+
+  color-scheme:light;
+  --color-bg:var(--gray-50);
+  --color-surface:var(--gray-0);
+  --color-surface-raised:var(--gray-0);
+  --color-surface-sunken:var(--gray-100);
+  --color-surface-hover:#f1f4f7;
+  --color-surface-selected:var(--indigo-50);
+  --color-text:var(--gray-900);
+  --color-text-muted:var(--gray-600);
+  --color-text-placeholder:var(--gray-500);
+  --color-text-disabled:var(--gray-400);
+  --color-text-inverse:var(--gray-0);
+  --color-border:var(--gray-200);
+  --color-border-strong:var(--gray-300);
+  --color-border-control:#848d99;
+  --color-border-selected:var(--indigo-600);
+  --color-primary:var(--indigo-600);
+  --color-primary-hover:var(--indigo-700);
+  --color-primary-active:var(--indigo-800);
+  --color-primary-fg:var(--gray-0);
+  --color-primary-text:var(--indigo-700);
+  --color-primary-soft:var(--indigo-50);
+  --color-primary-soft-fg:var(--indigo-700);
+  --color-primary-border:var(--indigo-200);
+  --color-primary-soft-hover:var(--indigo-100);
+  --color-success:var(--green-600);
+  --color-success-text:var(--green-700);
+  --color-success-soft:var(--green-50);
+  --color-success-border:var(--green-300);
+  --color-warning:var(--amber-600);
+  --color-warning-text:var(--amber-700);
+  --color-warning-soft:var(--amber-50);
+  --color-warning-border:var(--amber-300);
+  --color-danger:var(--red-700);
+  --color-danger-text:var(--red-700);
+  --color-danger-soft:var(--red-50);
+  --color-danger-border:var(--red-300);
+  --color-info:var(--sky-600);
+  --color-info-text:var(--sky-700);
+  --color-info-soft:var(--sky-50);
+  --color-info-border:var(--sky-300);
+  --color-focus:var(--indigo-600);
+  --ring-width:2px;--ring-offset:2px;
+  --shadow-focus:0 0 0 3px rgb(67 56 202 / .28);
+  --color-overlay:rgb(14 17 22 / .48);
+  --color-nav-bg:var(--gray-900);
+  --color-nav-text:var(--gray-100);
+  --color-nav-text-muted:#a6afbb;
+  --color-nav-hover:#23282f;
+  --color-nav-active-bg:#252946;
+  --color-nav-active-text:var(--gray-0);
+  --color-nav-active-bar:var(--indigo-400);
+  --color-nav-border:#2a2f38;
+  --color-nav-focus:var(--indigo-300);
+
+  --status-activa:var(--green-600);
+  --status-activa-fg:var(--green-800);
+  --status-activa-bg:var(--green-50);
+  --status-activa-border:var(--green-300);
+  --status-activa-mark:var(--green-600);
+  --status-proxima:var(--amber-600);
+  --status-proxima-fg:var(--amber-800);
+  --status-proxima-bg:var(--amber-50);
+  --status-proxima-border:var(--amber-300);
+  --status-proxima-mark:var(--amber-600);
+  --status-urgente:var(--orange-600);
+  --status-urgente-fg:var(--orange-800);
+  --status-urgente-bg:var(--orange-50);
+  --status-urgente-border:var(--orange-300);
+  --status-urgente-mark:var(--orange-600);
+  --status-vencida:var(--red-700);
+  --status-vencida-fg:var(--gray-0);
+  --status-vencida-bg:var(--red-700);
+  --status-vencida-border:var(--red-700);
+  --status-vencida-mark:var(--gray-0);
+  --status-archivada:var(--gray-500);
+  --status-archivada-fg:var(--gray-600);
+  --status-archivada-bg:var(--gray-100);
+  --status-archivada-border:var(--gray-300);
+  --status-archivada-mark:var(--gray-600);
+
+  --followup-pendiente-fg:var(--gray-700);
+  --followup-pendiente-bg:var(--gray-100);
+  --followup-pendiente-border:var(--gray-300);
+  --followup-contactado-fg:var(--sky-800);
+  --followup-contactado-bg:var(--sky-50);
+  --followup-contactado-border:var(--sky-300);
+  --followup-conversacion-fg:var(--indigo-800);
+  --followup-conversacion-bg:var(--indigo-50);
+  --followup-conversacion-border:var(--indigo-200);
+  --followup-confirmado-fg:var(--green-700);
+  --followup-confirmado-bg:var(--green-50);
+  --followup-confirmado-border:var(--green-300);
+  --followup-renovado-fg:var(--green-800);
+  --followup-renovado-bg:var(--green-100);
+  --followup-renovado-border:var(--green-600);
+  --followup-no-renovara-fg:var(--red-800);
+  --followup-no-renovara-bg:var(--red-50);
+  --followup-no-renovara-border:var(--red-300);
+
+  --meter-track:var(--gray-200);
+  --meter-ok:var(--green-600);
+  --meter-low:var(--amber-600);
+  --meter-empty:var(--red-700);
+}
+
+/* Tema oscuro: mismo bloque de tokens. Se aplica por atributo o por el switch
+   del preview (CSS :has, sin JS). */
+[data-theme="dark"],
+:root:has(#theme-dark:checked){
+  color-scheme:dark;
+  --color-bg:var(--gray-950);
+  --color-surface:var(--gray-900);
+  --color-surface-raised:#1e232b;
+  --color-surface-sunken:#14181e;
+  --color-surface-hover:#1f242c;
+  --color-surface-selected:#232946;
+  --color-text:var(--gray-100);
+  --color-text-muted:#a6afbb;
+  --color-text-placeholder:#8b94a2;
+  --color-text-disabled:#5a626e;
+  --color-text-inverse:var(--gray-950);
+  --color-border:#2a2f38;
+  --color-border-strong:#3e4550;
+  --color-border-control:#6c7683;
+  --color-border-selected:var(--indigo-400);
+  --color-primary:#4f46e5;
+  --color-primary-hover:#5b5bef;
+  --color-primary-active:var(--indigo-600);
+  --color-primary-fg:var(--gray-0);
+  --color-primary-text:var(--indigo-300);
+  --color-primary-soft:#232946;
+  --color-primary-soft-fg:var(--indigo-200);
+  --color-primary-border:#3c3f7a;
+  --color-primary-soft-hover:#2a3054;
+  --color-success:var(--green-400);
+  --color-success-text:#86efac;
+  --color-success-soft:#12301f;
+  --color-success-border:#256b3f;
+  --color-warning:var(--amber-400);
+  --color-warning-text:#fcd34d;
+  --color-warning-soft:#33280f;
+  --color-warning-border:#7c5a12;
+  --color-danger:var(--red-400);
+  --color-danger-text:#fca5a5;
+  --color-danger-soft:#3a1a1a;
+  --color-danger-border:#7f2a2a;
+  --color-info:var(--sky-400);
+  --color-info-text:#7dd3fc;
+  --color-info-soft:#102a38;
+  --color-info-border:#1f5a75;
+  --color-focus:var(--indigo-300);
+  --shadow-focus:0 0 0 3px rgb(165 176 252 / .32);
+  --color-overlay:rgb(0 0 0 / .66);
+  --color-nav-bg:#12161b;
+  --color-nav-text:var(--gray-100);
+  --color-nav-text-muted:#9aa3af;
+  --color-nav-hover:#1c2128;
+  --color-nav-active-bg:#232946;
+  --color-nav-active-text:var(--gray-0);
+  --color-nav-active-bar:var(--indigo-300);
+  --color-nav-border:#23282f;
+  --color-nav-focus:var(--indigo-300);
+
+  --status-activa:var(--green-400);
+  --status-activa-fg:#86efac;
+  --status-activa-bg:rgb(34 197 94 / .14);
+  --status-activa-border:rgb(34 197 94 / .38);
+  --status-activa-mark:var(--green-400);
+  --status-proxima:var(--amber-400);
+  --status-proxima-fg:#fcd34d;
+  --status-proxima-bg:rgb(251 191 36 / .14);
+  --status-proxima-border:rgb(251 191 36 / .38);
+  --status-proxima-mark:var(--amber-400);
+  --status-urgente:var(--orange-400);
+  --status-urgente-fg:#fdba8c;
+  --status-urgente-bg:rgb(251 146 60 / .15);
+  --status-urgente-border:rgb(251 146 60 / .40);
+  --status-urgente-mark:var(--orange-400);
+  --status-vencida:var(--red-700);
+  --status-vencida-fg:var(--gray-0);
+  --status-vencida-bg:var(--red-700);
+  --status-vencida-border:var(--red-600);
+  --status-vencida-mark:var(--gray-0);
+  --status-archivada:#8b94a2;
+  --status-archivada-fg:#a6afbb;
+  --status-archivada-bg:rgb(148 163 184 / .10);
+  --status-archivada-border:rgb(148 163 184 / .30);
+  --status-archivada-mark:#8b94a2;
+
+  --followup-pendiente-fg:#c4cbd5;
+  --followup-pendiente-bg:#23282f;
+  --followup-pendiente-border:#3e4550;
+  --followup-contactado-fg:#7dd3fc;
+  --followup-contactado-bg:#102a38;
+  --followup-contactado-border:#1f5a75;
+  --followup-conversacion-fg:var(--indigo-200);
+  --followup-conversacion-bg:#232946;
+  --followup-conversacion-border:#3c3f7a;
+  --followup-confirmado-fg:#86efac;
+  --followup-confirmado-bg:#12301f;
+  --followup-confirmado-border:#256b3f;
+  --followup-renovado-fg:var(--gray-950);
+  --followup-renovado-bg:#4ade80;
+  --followup-renovado-border:#4ade80;
+  --followup-no-renovara-fg:#fca5a5;
+  --followup-no-renovara-bg:#3a1a1a;
+  --followup-no-renovara-border:#7f2a2a;
+
+  --meter-track:#2a2f38;
+  --meter-ok:var(--green-400);
+  --meter-low:var(--amber-400);
+  --meter-empty:var(--red-400);
+  --shadow-xs:0 1px 2px rgb(0 0 0 / .40);
+  --shadow-sm:0 1px 3px rgb(0 0 0 / .45),0 1px 2px rgb(0 0 0 / .35);
+  --shadow-md:0 4px 12px -2px rgb(0 0 0 / .55),0 2px 4px -2px rgb(0 0 0 / .40);
+  --shadow-lg:0 16px 40px -8px rgb(0 0 0 / .65),0 4px 12px -4px rgb(0 0 0 / .45);
+  --shadow-sheet:-16px 0 48px -12px rgb(0 0 0 / .70);
+}
+
+@media (pointer:coarse){
+  :root{--control-h-sm:44px;--control-h-md:44px;--control-h-lg:52px;--row-h:56px;--nav-item-h:44px}
+}
+@media (prefers-reduced-motion:reduce){
+  :root{--duration-instant:0ms;--duration-fast:0ms;--duration-normal:0ms;--duration-slow:0ms}
+}
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:var(--ring-width) solid var(--color-focus);
+  outline-offset:var(--ring-offset);
+  box-shadow:var(--shadow-focus);
+}
+[data-chrome="dark"] :where(a,button,input,select,textarea,[tabindex]):focus-visible{
+  outline-color:var(--color-nav-focus);
+  box-shadow:0 0 0 3px rgb(165 176 252 / .30);
+}
+
+md) + 2px)} }
+
+/* =============================================================================
+   BASE
+   ============================================================================= */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;font-family:var(--font-sans);font-size:var(--text-base);line-height:1.45;
+  color:var(--color-text);background:var(--color-bg);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+h1,h2,h3,h4,p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+svg{display:block}
+a{color:var(--color-primary-text)}
+.tnum{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);font-size:var(--text-sm)}
+.muted{color:var(--color-text-muted)}
+.small{font-size:var(--text-sm)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* =============================================================================
+   BARRA DEL PREVIEW (no forma parte del producto)
+   ============================================================================= */
+.pv-bar{
+  position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--space-4);
+  padding:10px var(--space-5);background:#0f1319;color:#e7ebf0;
+  border-bottom:1px solid #2a2f38;flex-wrap:wrap;
+}
+.pv-name{font-weight:var(--weight-semibold);font-size:var(--text-base);letter-spacing:var(--tracking-tight)}
+.pv-tag{font-size:var(--text-xs);color:#a6afbb;border:1px solid #3e4550;border-radius:var(--radius-full);padding:1px 8px}
+.pv-links{display:flex;gap:var(--space-4);margin-left:auto;flex-wrap:wrap}
+.pv-links a{display:inline-flex;align-items:center;min-height:44px;color:#c4cbd5;font-size:var(--text-sm);text-decoration:none;padding:4px 2px;border-bottom:1px solid transparent}
+.pv-links a:hover{color:#fff;border-bottom-color:#818cf8}
+.pv-toggle{display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);color:#c4cbd5;cursor:pointer;min-height:44px}
+.pv-toggle .track{width:36px;height:20px;border-radius:var(--radius-full);background:#3e4550;position:relative;transition:background-color var(--duration-fast)}
+.pv-toggle .thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:var(--radius-full);background:#fff;transition:transform var(--duration-fast) var(--ease-standard)}
+.pv-toggle input:checked+.track{background:#6366f1}
+.pv-toggle input:checked+.track .thumb{transform:translateX(16px)}
+.pv-toggle input:focus-visible+.track{outline:2px solid #a5b0fc;outline-offset:2px}
+
+/* Documento */
+.doc{max-width:1512px;margin:0 auto;padding:var(--space-8) var(--space-6) var(--space-24)}
+.sec{margin-bottom:var(--space-16)}
+.sec-head{display:flex;align-items:flex-end;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);padding-bottom:var(--space-3);border-bottom:1px solid var(--color-border)}
+.sec-kicker{font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--color-text-muted)}
+.sec-title{font-size:var(--text-2xl);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight)}
+.sec-note{font-size:var(--text-sm);color:var(--color-text-muted);margin-left:auto}
+
+/* =============================================================================
+   APP SHELL
+   ============================================================================= */
+.app{
+  display:grid;grid-template-columns:var(--layout-sidebar-w-lg) minmax(0,1fr);
+  background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-xl);
+  overflow:hidden;box-shadow:var(--shadow-sm);
+}
+/* Sidebar */
+.sb{background:var(--color-nav-bg);color:var(--color-nav-text);padding:var(--space-4) var(--space-3);display:flex;flex-direction:column;gap:var(--space-6);min-height:100%;border-right:1px solid var(--color-nav-border)}
+.sb-brand{display:flex;align-items:center;gap:var(--space-2);min-height:var(--nav-item-h);padding:0 var(--space-2);color:var(--color-nav-text);text-decoration:none}
+.sb-word{font-size:var(--text-xl);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight)}
+.sb-sub{font-size:var(--text-xs);color:var(--color-nav-text-muted);padding:0 var(--space-2);margin-top:-4px}
+.sb-nav{display:flex;flex-direction:column;gap:2px}
+.sb-link{
+  display:flex;align-items:center;gap:10px;height:var(--nav-item-h);padding:0 var(--space-3);border-radius:var(--radius-sm);
+  color:var(--color-nav-text-muted);font-size:var(--text-base);text-decoration:none;position:relative;
+  transition:background-color var(--duration-fast),color var(--duration-fast);
+}
+.sb-link svg{width:18px;height:18px;flex:none}
+.sb-link:hover{background:var(--color-nav-hover);color:var(--color-nav-text)}
+.sb-link[aria-current="page"]{background:var(--color-nav-active-bg);color:var(--color-nav-active-text);font-weight:var(--weight-medium)}
+.sb-link[aria-current="page"]::before{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:var(--radius-full);
+  background:var(--color-nav-active-bar);
+}
+.sb-count{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-full);background:var(--color-nav-active-bg);color:#fff;font-size:11px;font-weight:var(--weight-semibold);display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.sb-link[aria-current="page"] .sb-count{background:var(--color-nav-active-bar);color:var(--gray-950)}
+.sb-foot{margin-top:auto;display:flex;flex-direction:column;gap:var(--space-2);padding-top:var(--space-4);border-top:1px solid var(--color-nav-border)}
+.sb-user{display:flex;align-items:center;gap:var(--space-2);padding:0 var(--space-2);font-size:var(--text-sm);color:var(--color-nav-text-muted)}
+.avatar{width:28px;height:28px;border-radius:var(--radius-full);background:#3c3f7a;color:#fff;font-size:12px;font-weight:var(--weight-semibold);display:inline-flex;align-items:center;justify-content:center;flex:none}
+
+/* Main */
+.main{min-width:0;display:flex;flex-direction:column;background:var(--color-bg)}
+.tb{
+  height:var(--layout-topbar-h);display:flex;align-items:center;gap:var(--space-3);
+  padding:0 var(--space-6);background:var(--color-surface);border-bottom:1px solid var(--color-border);
+  position:sticky;top:0;z-index:var(--z-sticky);flex:none;
+}
+.tb-title{font-size:var(--text-lg);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-spacer{flex:1}
+.tb .tb-menu{display:none}
+.search{position:relative;width:240px;max-width:100%}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--color-text-muted);pointer-events:none}
+.search input{
+  width:100%;height:var(--control-h-md);border:1px solid var(--color-border-control);border-radius:var(--radius-md);
+  background:var(--color-surface);padding:0 12px 0 34px;font-size:var(--text-lg);color:var(--color-text);
+}
+.search input::placeholder{color:var(--color-text-placeholder);opacity:1}
+.ct{padding:var(--space-6);display:flex;flex-direction:column;gap:var(--space-4);min-width:0}
+
+/* Encabezado de página */
+.page-head{display:flex;align-items:flex-start;gap:var(--space-4);flex-wrap:wrap}
+.page-title{font-size:var(--text-3xl);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);line-height:1.29}
+.page-sub{font-size:var(--text-sm);color:var(--color-text-muted);margin-top:2px}
+.page-actions{display:flex;gap:var(--space-2);margin-left:auto;flex-wrap:wrap}
+
+/* =============================================================================
+   BOTONES
+   ============================================================================= */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);
+  height:var(--control-h-md);padding:0 var(--space-4);border-radius:var(--radius-md);
+  border:1px solid transparent;font-size:var(--text-base);font-weight:var(--weight-medium);
+  white-space:nowrap;text-decoration:none;
+  transition:background-color var(--duration-fast) var(--ease-standard),border-color var(--duration-fast),color var(--duration-fast);
+}
+.btn svg{width:18px;height:18px;flex:none}
+.btn-sm{height:var(--control-h-sm);padding:0 var(--space-3);font-size:var(--text-sm);gap:6px}
+.btn-sm svg{width:16px;height:16px}
+.btn-primary{background:var(--color-primary);color:var(--color-primary-fg)}
+.btn-primary:hover{background:var(--color-primary-hover)}
+.btn-primary:active{background:var(--color-primary-active)}
+.btn-secondary{background:var(--color-surface);color:var(--color-text);border-color:var(--color-border-control)}
+.btn-secondary:hover{background:var(--color-surface-hover);border-color:var(--color-border-strong)}
+.btn-secondary:active{background:var(--color-surface-selected)}
+.btn-ghost{background:transparent;color:var(--color-text-muted)}
+.btn-ghost:hover{background:var(--color-surface-hover);color:var(--color-text)}
+.btn-icon{width:var(--control-h-md);padding:0;flex:none}
+.btn-sm.btn-icon{width:var(--control-h-sm)}
+.btn-block{width:100%}
+
+/* =============================================================================
+   MÉTRICAS
+   ============================================================================= */
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-4)}
+.metric{
+  position:relative;overflow:hidden;display:flex;flex-direction:column;gap:2px;
+  padding:var(--space-5);min-height:104px;background:var(--color-surface);
+  border:1px solid var(--color-border);border-radius:var(--radius-lg);color:inherit;text-decoration:none;
+  transition:border-color var(--duration-fast);
+}
+.metric:hover{border-color:var(--color-border-strong)}
+.metric.attn::before,.metric.crit::before{content:"";position:absolute;inset:0 0 auto 0;height:3px}
+.metric.attn::before{background:var(--color-warning)}
+.metric.crit::before{background:var(--color-danger)}
+.metric-label{font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--color-text-muted)}
+.metric-value{font-size:var(--text-4xl);line-height:1.12;font-weight:var(--weight-semibold);font-variant-numeric:tabular-nums;letter-spacing:var(--tracking-tight)}
+.metric.crit .metric-value{color:var(--color-danger-text)}
+.metric-ctx{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:auto}
+.meter{height:4px;border-radius:var(--radius-full);background:var(--meter-track);overflow:hidden;margin-top:6px}
+.meter>span{display:block;height:100%;background:var(--meter-low);border-radius:inherit}
+
+/* =============================================================================
+   LAYOUT DEL DASHBOARD
+   ============================================================================= */
+.dash-grid{display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:var(--space-6);align-items:start}
+.rail{display:flex;flex-direction:column;gap:var(--space-4)}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4)}
+.card-title{font-size:var(--text-base);font-weight:var(--weight-semibold);margin-bottom:var(--space-3)}
+.quick{display:flex;flex-direction:column;gap:var(--space-2)}
+.quick-row{display:flex;gap:var(--space-2)}
+.quick-row .btn{flex:1;padding:0 var(--space-2);font-size:var(--text-sm)}
+.cash{display:flex;flex-direction:column;gap:6px;font-size:var(--text-sm)}
+.cash-row{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-2)}
+.cash-row dt{color:var(--color-text-muted)}
+.cash-row dd{margin:0;font-variant-numeric:tabular-nums;font-weight:var(--weight-medium)}
+.cash-total{border-top:1px solid var(--color-border);margin-top:6px;padding-top:8px;font-weight:var(--weight-semibold)}
+.cash-total dt{color:var(--color-text)}
+.cash-total dd{font-size:var(--text-lg)}
+.card-note{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-3);line-height:1.45}
+.fup-list{display:flex;flex-direction:column;gap:2px}
+.fup-row{display:flex;align-items:center;gap:var(--space-2);padding:8px 0;border-bottom:1px solid var(--color-border);min-height:44px}
+.fup-row:last-child{border-bottom:0}
+.fup-who{min-width:0;flex:1}
+.fup-name{font-size:var(--text-sm);font-weight:var(--weight-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fup-when{font-size:var(--text-xs);color:var(--color-text-muted)}
+.card-link{display:inline-flex;align-items:center;gap:4px;height:var(--control-h-sm);font-size:var(--text-sm);color:var(--color-primary-text);text-decoration:none;font-weight:var(--weight-medium)}
+.card-link:hover{text-decoration:underline}
+
+/* =============================================================================
+   TABS
+   ============================================================================= */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--color-border);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  display:inline-flex;align-items:center;gap:6px;height:var(--control-h-md);padding:0 var(--space-3);
+  font-size:var(--text-base);color:var(--color-text-muted);text-decoration:none;white-space:nowrap;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+.tab:hover{color:var(--color-text);background:var(--color-surface-hover);border-radius:var(--radius-sm) var(--radius-sm) 0 0}
+.tab[aria-selected="true"]{color:var(--color-text);font-weight:var(--weight-semibold);border-bottom-color:var(--color-primary)}
+.tab-count{min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-full);background:var(--color-surface-sunken);color:var(--color-text-muted);font-size:11px;font-weight:var(--weight-semibold);display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.tab[aria-selected="true"] .tab-count{background:var(--color-primary-soft);color:var(--color-primary-soft-fg)}
+
+/* =============================================================================
+   TABLA + CONVERSIÓN A TARJETA
+   ============================================================================= */
+.panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden}
+.panel-head{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-border);flex-wrap:wrap}
+.panel-head .tabs{border-bottom:0;margin-bottom:0}
+.panel-head .card-link{margin-left:auto}
+.table-wrap{container-type:inline-size}
+.vt{width:100%;border-collapse:collapse;font-size:var(--text-base)}
+.vt th{
+  height:36px;padding:0 var(--space-3);text-align:left;font-size:var(--text-xs);font-weight:var(--weight-semibold);
+  letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--color-text-muted);
+  background:var(--color-surface-sunken);border-bottom:1px solid var(--color-border);white-space:nowrap;
+}
+.vt td{height:var(--row-h);padding:0 var(--space-3);border-bottom:1px solid var(--color-border);vertical-align:middle}
+.vt tbody tr:last-child td{border-bottom:0}
+.vt tbody tr:hover{background:var(--color-surface-hover)}
+.vt .ta-r,.vt th.ta-r{text-align:right}
+.vt .c-client{font-weight:var(--weight-medium)}
+.vt .c-plan{display:block;font-size:var(--text-xs);color:var(--color-text-muted);font-weight:var(--weight-regular);margin-top:1px}
+.vt .due{display:block;font-variant-numeric:tabular-nums}
+.vt .rel{display:block;font-size:var(--text-xs);color:var(--color-text-muted)}
+.vt tr[data-status="VENCIDA"] td:first-child{box-shadow:inset 3px 0 0 var(--status-vencida)}
+.vt tr[data-status="URGENTE"] td:first-child{box-shadow:inset 3px 0 0 var(--status-urgente)}
+.row-actions{display:flex;gap:var(--space-1);justify-content:flex-end;align-items:center}
+.wa-label{display:none}
+.lbl-long{display:none}
+.tfoot{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-top:1px solid var(--color-border);font-size:var(--text-sm);color:var(--color-text-muted);flex-wrap:wrap}
+.tfoot .btn{margin-left:auto}
+
+/* Badges de vigencia */
+.badge{
+  display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 var(--space-2);
+  border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--weight-medium);
+  border:1px solid transparent;white-space:nowrap;line-height:1;
+}
+.badge svg{width:10px;height:10px;flex:none}
+.st-activa{color:var(--status-activa-fg);background:var(--status-activa-bg);border-color:var(--status-activa-border)}
+.st-activa .mk{color:var(--status-activa-mark)}
+.st-proxima{color:var(--status-proxima-fg);background:var(--status-proxima-bg);border-color:var(--status-proxima-border)}
+.st-proxima .mk{color:var(--status-proxima-mark)}
+.st-urgente{color:var(--status-urgente-fg);background:var(--status-urgente-bg);border-color:var(--status-urgente-border)}
+.st-urgente .mk{color:var(--status-urgente-mark)}
+.st-vencida{color:var(--status-vencida-fg);background:var(--status-vencida-bg);border-color:var(--status-vencida-border)}
+.st-vencida .mk{color:var(--status-vencida-mark)}
+.st-archivada{color:var(--status-archivada-fg);background:var(--status-archivada-bg);border-color:var(--status-archivada-border);border-style:dashed}
+.st-archivada .mk{color:var(--status-archivada-mark)}
+
+/* Badges de seguimiento */
+.fup{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:var(--radius-sm);font-size:var(--text-xs);font-weight:var(--weight-medium);border:1px solid transparent;white-space:nowrap;line-height:1}
+.fup-pendiente{color:var(--followup-pendiente-fg);background:var(--followup-pendiente-bg);border-color:var(--followup-pendiente-border)}
+.fup-contactado{color:var(--followup-contactado-fg);background:var(--followup-contactado-bg);border-color:var(--followup-contactado-border)}
+.fup-conversacion{color:var(--followup-conversacion-fg);background:var(--followup-conversacion-bg);border-color:var(--followup-conversacion-border)}
+.fup-confirmado{color:var(--followup-confirmado-fg);background:var(--followup-confirmado-bg);border-color:var(--followup-confirmado-border)}
+.fup-renovado{color:var(--followup-renovado-fg);background:var(--followup-renovado-bg);border-color:var(--followup-renovado-border)}
+.fup-no-renovara{color:var(--followup-no-renovara-fg);background:var(--followup-no-renovara-bg);border-color:var(--followup-no-renovara-border)}
+
+/* Leyenda */
+.legend{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-5);padding:var(--space-3) var(--space-4);background:var(--color-surface-sunken);border-top:1px solid var(--color-border)}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--color-text-muted)}
+
+/* =============================================================================
+   TARJETAS (≤640 px de contenedor) — misma tabla, otra presentación
+   ============================================================================= */
+@container (max-width:640px){
+  .vt thead{display:none}
+  .vt,.vt tbody,.vt tr,.vt td{display:block;width:auto}
+  .vt tbody tr{
+    display:grid;grid-template-columns:1fr auto;gap:2px var(--space-3);
+    border:1px solid var(--color-border);border-radius:var(--radius-lg);
+    padding:var(--space-3);margin:var(--space-2);background:var(--color-surface);
+    box-shadow:var(--shadow-xs);
+  }
+  .vt tbody tr:hover{background:var(--color-surface)}
+  .vt tbody tr[data-status="VENCIDA"]{border-left:3px solid var(--status-vencida)}
+  .vt tbody tr[data-status="URGENTE"]{border-left:3px solid var(--status-urgente)}
+  .vt tbody tr[data-status="VENCIDA"] td:first-child,
+  .vt tbody tr[data-status="URGENTE"] td:first-child{box-shadow:none}
+  .vt td{height:auto;padding:0;border:0}
+  .vt .c-status{grid-row:1;grid-column:1;align-self:center}
+  .vt .c-due{grid-row:1;grid-column:2;text-align:right;align-self:center}
+  .vt .c-due .due{font-size:var(--text-sm);font-weight:var(--weight-medium)}
+  .vt .c-client{grid-row:2;grid-column:1/-1;font-size:var(--text-lg);font-weight:var(--weight-semibold);margin-top:6px}
+  .vt .c-account{grid-row:3;grid-column:1/-1;margin-top:2px}
+  .vt .c-plan{display:inline;margin:0}
+  .vt .c-account .sep{color:var(--color-text-disabled);padding:0 4px}
+  .vt .c-actions{grid-row:4;grid-column:1/-1;margin-top:var(--space-3)}
+  .vt .row-actions{justify-content:stretch;gap:var(--space-2)}
+  .vt .row-actions .btn{flex:1;height:var(--control-h-md);padding:0 var(--space-2);font-size:var(--text-sm)}
+  .vt .row-actions .btn-icon{width:auto}
+  .vt .row-actions .btn-ghost{background:var(--color-surface);border-color:var(--color-border-control);color:var(--color-text)}
+  .vt .wa-label{display:inline}
+  .vt .lbl-long{display:inline}
+  .vt .lbl-short{display:none}
+}
+
+/* =============================================================================
+   TELÉFONO (375 px)
+   ============================================================================= */
+.phone-wrap{display:flex;justify-content:center}
+.phone{
+  width:375px;max-width:100%;background:var(--color-bg);border:1px solid var(--color-border);
+  border-radius:28px;overflow:hidden;box-shadow:var(--shadow-lg);
+}
+.phone-top{height:56px;display:flex;align-items:center;gap:var(--space-2);padding:0 var(--space-3);background:var(--color-surface);border-bottom:1px solid var(--color-border)}
+.phone-title{font-size:var(--text-lg);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight)}
+.phone-body{padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-3);min-height:600px}
+.phone-metrics{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
+.phone-metrics .metric{padding:var(--space-3);min-height:0;gap:0}
+.phone-metrics .metric-value{font-size:var(--text-3xl)}
+.phone-actions{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
+.phone-bottom{height:56px;display:flex;background:var(--color-nav-bg);border-top:1px solid var(--color-nav-border);padding-bottom:env(safe-area-inset-bottom)}
+.phone-bottom a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--color-nav-text-muted);text-decoration:none;min-height:44px}
+.phone-bottom a svg{width:20px;height:20px}
+.phone-bottom a[aria-current="page"]{color:var(--color-nav-active-text);font-weight:var(--weight-medium);box-shadow:inset 0 2px 0 var(--color-nav-active-bar)}
+
+/* =============================================================================
+   SHEET — Registrar renovación
+   ============================================================================= */
+.stage{display:flex;min-height:520px;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-xl);overflow:hidden}
+.stage-bg{flex:1;padding:var(--space-6);position:relative;min-width:0;overflow:hidden}
+.stage-bg::after{content:"";position:absolute;inset:0;background:var(--color-overlay)}
+.stage-bg-inner{opacity:.85;display:flex;flex-direction:column;gap:var(--space-3)}
+.ghost-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-4)}
+.ghost-metric{height:104px;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-border)}
+.ghost-line{height:12px;border-radius:var(--radius-xs);background:var(--color-surface-sunken)}
+.ghost-row{height:var(--row-h);border-radius:var(--radius-md);background:var(--color-surface);border:1px solid var(--color-border)}
+.sheet{
+  width:var(--layout-sheet-w);max-width:100%;background:var(--color-surface);
+  border-left:1px solid var(--color-border);box-shadow:var(--shadow-sheet);
+  display:flex;flex-direction:column;position:relative;z-index:2;
+}
+.sheet-head{padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--color-border);display:flex;align-items:flex-start;gap:var(--space-3)}
+.sheet-title{font-size:var(--text-xl);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight)}
+.sheet-sub{font-size:var(--text-sm);color:var(--color-text-muted);margin-top:2px}
+.sheet-body{padding:var(--space-4) var(--space-5);display:flex;flex-direction:column;gap:14px;flex:1 1 auto}
+.sheet-foot{padding:var(--space-3) var(--space-5) var(--space-4);border-top:1px solid var(--color-border);background:var(--color-surface);display:flex;flex-direction:column;gap:var(--space-2)}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.label{font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--color-text)}
+.hint{font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.4}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+.input,.select{
+  width:100%;height:var(--control-h-md);border:1px solid var(--color-border-control);
+  border-radius:var(--radius-md);background:var(--color-surface);padding:0 var(--space-3);
+  font-size:var(--control-font-size);color:var(--color-text);
+  transition:border-color var(--duration-fast);
+}
+.input::placeholder{color:var(--color-text-placeholder);opacity:1}
+.input:hover,.select:hover{border-color:var(--color-border-strong)}
+.input:focus,.select:focus{border-color:var(--color-primary)}
+.input.tnum{text-align:right}
+.selwrap{position:relative}
+.selwrap svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--color-text-muted);pointer-events:none}
+.select{appearance:none;padding-right:32px;cursor:pointer}
+.iwrap{position:relative;display:flex;align-items:center}
+.iwrap .affix{position:absolute;left:12px;font-size:var(--text-sm);color:var(--color-text-muted);pointer-events:none}
+.iwrap .input.pad-l{padding-left:38px}
+.iwrap .icon-r{position:absolute;right:10px;width:16px;height:16px;color:var(--color-text-muted);pointer-events:none}
+.chip-suggest{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:var(--radius-xs);background:var(--color-primary-soft);color:var(--color-primary-soft-fg);font-size:11px;font-weight:var(--weight-semibold);vertical-align:1px}
+.label-row{display:flex;align-items:center;gap:var(--space-2);justify-content:space-between}
+.stepper{display:flex;align-items:center;height:var(--control-h-md);border:1px solid var(--color-border-control);border-radius:var(--radius-md);background:var(--color-surface);overflow:hidden}
+.stepper button{width:var(--control-h-md);height:100%;border:0;background:transparent;color:var(--color-text-muted);display:inline-flex;align-items:center;justify-content:center}
+.stepper button:hover{background:var(--color-surface-hover);color:var(--color-text)}
+.stepper button:active{background:var(--color-surface-selected)}
+.stepper input{flex:1;min-width:0;height:100%;border:0;border-inline:1px solid var(--color-border);background:transparent;text-align:center;font-size:var(--control-font-size);font-variant-numeric:tabular-nums;color:var(--color-text)}
+.stepper input:focus-visible{outline:1px solid var(--color-focus);outline-offset:-2px;box-shadow:none}
+.seg{display:inline-flex;padding:2px;background:var(--color-surface-sunken);border-radius:var(--radius-md);border:1px solid var(--color-border)}
+.seg label{position:relative;display:inline-flex;align-items:center;justify-content:center;height:var(--control-h-sm);padding:0 var(--space-3);border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--color-text-muted);cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg input:checked+span{color:var(--color-text)}
+.seg label:has(input:checked){background:var(--color-surface);box-shadow:var(--shadow-xs);font-weight:var(--weight-medium);color:var(--color-text)}
+.seg label:has(input:focus-visible){outline:2px solid var(--color-focus);outline-offset:2px}
+.switch{display:inline-flex;align-items:center;gap:var(--space-2);cursor:pointer;min-height:44px;font-size:var(--text-base)}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch .track{width:40px;height:24px;border-radius:var(--radius-full);background:var(--gray-300);position:relative;flex:none;transition:background-color var(--duration-fast)}
+.switch .thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:var(--radius-full);background:#fff;box-shadow:var(--shadow-sm);transition:transform var(--duration-fast) var(--ease-standard)}
+.switch input:checked+.track{background:var(--color-primary)}
+.switch input:checked+.track .thumb{transform:translateX(16px)}
+.switch input:focus-visible+.track{outline:2px solid var(--color-focus);outline-offset:2px;box-shadow:var(--shadow-focus)}
+.divider{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-xs);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--color-text-muted);margin-top:2px}
+.divider::after{content:"";flex:1;height:1px;background:var(--color-border)}
+.summary{display:grid;grid-template-columns:repeat(3,auto);gap:2px var(--space-4);font-size:var(--text-sm)}
+.summary span{color:var(--color-text-muted)}
+.summary b{font-variant-numeric:tabular-nums;font-weight:var(--weight-semibold)}
+.summary-line{display:flex;justify-content:space-between;gap:var(--space-3);font-size:var(--text-sm)}
+.summary-line .neg{color:var(--color-danger-text);font-weight:var(--weight-medium)}
+.sheet-actions{display:flex;gap:var(--space-2);justify-content:flex-end}
+.sheet-actions .btn{flex:0 1 auto}
+.sheet-actions .btn-primary{flex:1}
+.readonly-chip{display:inline-flex;align-items:center;gap:var(--space-2);height:32px;padding:0 var(--space-2) 0 var(--space-3);border-radius:var(--radius-full);background:var(--color-primary-soft);color:var(--color-primary-soft-fg);font-size:var(--text-sm);font-weight:var(--weight-medium);max-width:100%}
+.readonly-chip .avatar{width:20px;height:20px;font-size:10px;background:var(--color-primary);color:var(--color-primary-fg)}
+
+/* =============================================================================
+   RESPONSIVE DEL DOCUMENTO
+   ============================================================================= */
+@media (max-width:1279px){
+  .dash-grid{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:1023px){
+  .app{grid-template-columns:1fr}
+  .sb{display:none}
+  .tb .tb-menu{display:inline-flex}
+  .ct{padding:var(--space-4)}
+  .tb{padding:0 var(--space-4);top:44px}
+  .search{display:none}
+  .stage{flex-direction:column}
+  .stage-bg{display:none}
+  .sheet{width:100%;border-left:0;box-shadow:none}
+}
+@media (max-width:767px){
+  .doc{padding:var(--space-5) var(--space-3) var(--space-16)}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .page-title{font-size:var(--text-2xl)}
+  .row2{grid-template-columns:1fr}
+  .summary{grid-template-columns:1fr 1fr}
+  .sheet-body{padding:var(--space-3) var(--space-4)}
+  .sheet-head,.sheet-foot{padding-inline:var(--space-4)}
+  .tb{padding:0 var(--space-3);gap:var(--space-2)}
+  .tb .btn-label{display:none}
+  .tb .btn{width:var(--control-h-md);padding:0;flex:none}
+  .tb .tb-menu{display:inline-flex}
+  .tb .btn .btn-label{display:none}
+}
+@media (max-width:479px){
+  .doc{padding-inline:var(--space-2)}
+  .quick-row{flex-direction:column}
+  .quick-row .btn{flex:none}
+  .tab{padding:0 var(--space-2);font-size:var(--text-sm);gap:4px}
+  .summary-line{flex-direction:column;gap:2px;align-items:flex-start}
+  .page-actions{width:100%;margin-left:0}
+  .page-actions .btn{flex:1}
+}
+@media (pointer:coarse){ .stepper{height:calc(var(--control-h-md) + 2px)} }
+</style>
+</head>
+<body>
+
+<!-- ============================ BARRA DE PREVIEW ============================ -->
+<div class="pv-bar">
+  <span class="pv-name">IPTV Manager</span>
+  <span class="pv-tag">Preview v1.0 · datos de ejemplo</span>
+  <nav class="pv-links" aria-label="Secciones del preview">
+    <a href="#dashboard">A · Dashboard 1440</a>
+    <a href="#renovacion">B · Registrar renovación</a>
+    <a href="#movil">C · Móvil 375</a>
+  </nav>
+  <label class="pv-toggle" for="theme-dark">
+    <input type="checkbox" id="theme-dark" class="sr">
+    <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+    Tema oscuro
+  </label>
+</div>
+
+<main class="doc">
+
+  <!-- ======================================================================
+       A · DASHBOARD 1440
+       ====================================================================== -->
+  <section class="sec" id="dashboard" aria-labelledby="t-dash">
+    <header class="sec-head">
+      <span class="sec-kicker">Vista A</span>
+      <h2 class="sec-title" id="t-dash">Dashboard “Hoy” — 1440 px</h2>
+      <p class="sec-note">Sidebar 252 px · contenido 1124 px · rail 344 px</p>
+    </header>
+
+    <div class="app">
+      <!-- Sidebar -->
+      <aside class="sb" data-chrome="dark" aria-label="Navegación principal">
+        <div>
+          <a class="sb-brand" href="#dashboard"><span class="sb-word">IPTV Manager</span></a>
+          <p class="sb-sub">Panel privado</p>
+        </div>
+        <nav class="sb-nav" aria-label="Secciones">
+          <a class="sb-link" href="#dashboard" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9.5 21v-6h5v6"/></svg>
+            Hoy <span class="sb-count">2</span>
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.2"/><path d="M4 19.5v-1.2A3.8 3.8 0 0 1 7.8 14.5h3.4a3.8 3.8 0 0 1 3.8 3.8v1.2"/><path d="M17 5.2a3 3 0 0 1 0 5.6M18.2 14.9a3.6 3.6 0 0 1 1.8 3.1v1.5"/></svg>
+            Clientes
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Cuentas IPTV
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg>
+            Seguimiento <span class="sb-count">4</span>
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/></svg>
+            Renovaciones
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/><path d="M5 11.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg>
+            Tokens
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10.5h18"/><circle cx="17" cy="15" r="1.1"/></svg>
+            Finanzas
+          </a>
+          <a class="sb-link" href="#dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="17" r="1.8"/></svg>
+            Configuración
+          </a>
+        </nav>
+        <div class="sb-foot">
+          <div class="sb-user"><span class="avatar">EV</span> Everson V.</div>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="tb">
+          <button class="btn btn-ghost btn-icon tb-menu" type="button" aria-label="Abrir menú de navegación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <span class="tb-title">Hoy</span>
+          <span class="tb-spacer"></span>
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+            <input type="search" placeholder="Buscar cliente o usuario…" aria-label="Buscar cliente o usuario">
+          </div>
+          <button class="btn btn-secondary" type="button" aria-label="Nuevo cliente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="btn-label">Nuevo cliente</span></button>
+          <button class="btn btn-primary" type="button" aria-label="Registrar renovación"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/></svg><span class="btn-label">Registrar renovación</span></button>
+        </div>
+
+        <div class="ct">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Hoy, miércoles 21 de octubre</h1>
+              <p class="page-sub">2 cuentas vencen hoy · 4 en los próximos 7 días · 3 ya vencieron</p>
+            </div>
+          </div>
+
+          <!-- Métricas -->
+          <div class="metrics">
+            <a class="metric crit" href="#dashboard">
+              <span class="metric-label">Vencen hoy</span>
+              <span class="metric-value">2</span>
+              <span class="metric-ctx">de 42 cuentas activas</span>
+            </a>
+            <a class="metric attn" href="#dashboard">
+              <span class="metric-label">Próximos 7 días</span>
+              <span class="metric-value">6</span>
+              <span class="metric-ctx">4 después de hoy</span>
+            </a>
+            <a class="metric crit" href="#dashboard">
+              <span class="metric-label">Vencidas</span>
+              <span class="metric-value">3</span>
+              <span class="metric-ctx">la más antigua: hace 9 días</span>
+            </a>
+            <a class="metric" href="#dashboard">
+              <span class="metric-label">Saldo de tokens</span>
+              <span class="metric-value tnum">14</span>
+              <span class="metric-ctx">mínimo 5 · S/ 1.8670 por token</span>
+              <span class="meter" role="img" aria-label="14 tokens de 20 de referencia; por encima del mínimo de 5"><span style="width:70%"></span></span>
+            </a>
+          </div>
+
+          <div class="dash-grid">
+            <!-- Tabla de vencimientos -->
+            <div class="panel">
+              <div class="panel-head">
+                <div class="tabs" role="tablist" aria-label="Filtro de vencimientos">
+                  <a class="tab" role="tab" aria-selected="true" href="#dashboard">Hoy <span class="tab-count">2</span></a>
+                  <a class="tab" role="tab" aria-selected="false" href="#dashboard">7 días <span class="tab-count">6</span></a>
+                  <a class="tab" role="tab" aria-selected="false" href="#dashboard">Vencidas <span class="tab-count">3</span></a>
+                  <a class="tab" role="tab" aria-selected="false" href="#dashboard">Todas</a>
+                </div>
+                <a class="card-link" href="#dashboard">Ver todas →</a>
+              </div>
+
+              <div class="table-wrap">
+                <table class="vt">
+                  <caption class="sr">Cuentas que vencen hoy y en los próximos 7 días</caption>
+                  <colgroup>
+                    <col style="width:104px"><col><col style="width:168px"><col style="width:116px"><col style="width:168px">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">Estado</th>
+                      <th scope="col">Cliente</th>
+                      <th scope="col">Cuenta</th>
+                      <th scope="col" class="ta-r">Vence</th>
+                      <th scope="col"><span class="sr">Acciones</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr data-status="VENCIDA">
+                      <td class="c-status">
+                        <span class="badge st-vencida">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3.7 3.7 6.3 6.3M6.3 3.7 3.7 6.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                          Vencida
+                        </span>
+                      </td>
+                      <td class="c-client">Rosa Quispe Huamán</td>
+                      <td class="c-account">
+                        <span class="mono">rquispe01</span><span class="c-plan"> · 3 meses / 3 dispositivos</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">20 oct 2026</span><span class="rel">hace 1 día</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Rosa Quispe Huamán">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr data-status="URGENTE">
+                      <td class="c-status">
+                        <span class="badge st-urgente">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>
+                          Urgente
+                        </span>
+                      </td>
+                      <td class="c-client">Julio César Mendoza Ríos</td>
+                      <td class="c-account">
+                        <span class="mono">jmendoza_3d</span><span class="c-plan"> · 1 mes / 3 dispositivos</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">21 oct 2026</span><span class="rel">hoy · 22:00</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Julio César Mendoza Ríos">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr data-status="URGENTE">
+                      <td class="c-status">
+                        <span class="badge st-urgente">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>
+                          Urgente
+                        </span>
+                      </td>
+                      <td class="c-client">Marisol Chávez Ttito</td>
+                      <td class="c-account">
+                        <span class="mono">mchavez.tt</span><span class="c-plan"> · 1 mes / 1 dispositivo</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">21 oct 2026</span><span class="rel">hoy · 18:30</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Marisol Chávez Ttito">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr data-status="URGENTE">
+                      <td class="c-status">
+                        <span class="badge st-urgente">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>
+                          Urgente
+                        </span>
+                      </td>
+                      <td class="c-client">Ana Lucía Paredes Vega</td>
+                      <td class="c-account">
+                        <span class="mono">alu.paredes</span><span class="c-plan"> · 1 mes / 3 dispositivos</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">23 oct 2026</span><span class="rel">en 2 días</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Ana Lucía Paredes Vega">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr data-status="URGENTE">
+                      <td class="c-status">
+                        <span class="badge st-urgente">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>
+                          Urgente
+                        </span>
+                      </td>
+                      <td class="c-client">Luis Alberto Ccori Mamani</td>
+                      <td class="c-account">
+                        <span class="mono">lccori24</span><span class="c-plan"> · 3 meses / 3 dispositivos</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">24 oct 2026</span><span class="rel">en 3 días</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Luis Alberto Ccori Mamani">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr data-status="PROXIMA">
+                      <td class="c-status">
+                        <span class="badge st-proxima">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 3.1V5l1.4 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                          Próxima
+                        </span>
+                      </td>
+                      <td class="c-client">Gladys Rojas Salazar</td>
+                      <td class="c-account">
+                        <span class="mono">grojas.s</span><span class="c-plan"> · 1 mes / 3 dispositivos</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">26 oct 2026</span><span class="rel">en 5 días</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Gladys Rojas Salazar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr data-status="PROXIMA">
+                      <td class="c-status">
+                        <span class="badge st-proxima">
+                          <svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 3.1V5l1.4 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                          Próxima
+                        </span>
+                      </td>
+                      <td class="c-client">Jorge Antonio Flores Díaz</td>
+                      <td class="c-account">
+                        <span class="mono">jflores.d</span><span class="c-plan"> · 1 mes / 1 dispositivo</span>
+                      </td>
+                      <td class="c-due ta-r"><span class="due">28 oct 2026</span><span class="rel">en 7 días</span></td>
+                      <td class="c-actions">
+                        <div class="row-actions">
+                          <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Abrir WhatsApp de Jorge Antonio Flores Díaz">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H7l-4 2 1.2-4.2A8 8 0 1 1 21 11.5z"/></svg><span class="wa-label">WhatsApp</span>
+                          </button>
+                          <button class="btn btn-secondary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="tfoot">
+                <span>1–7 de 7 · ordenado por estado y vencimiento</span>
+                <button class="btn btn-ghost btn-sm" type="button">Ver todas las cuentas</button>
+              </div>
+
+              <div class="legend">
+                <span class="legend-item"><span class="badge st-activa"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>Activa</span> más de 7 días</span>
+                <span class="legend-item"><span class="badge st-proxima"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 3.1V5l1.4 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Próxima</span> 4–7 días · reloj</span>
+                <span class="legend-item"><span class="badge st-urgente"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>Urgente</span> 0–3 días · triángulo</span>
+                <span class="legend-item"><span class="badge st-vencida"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3.7 3.7 6.3 6.3M6.3 3.7 3.7 6.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Vencida</span> sólido · cuadrado</span>
+                <span class="legend-item"><span class="badge st-archivada"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Archivada</span> discontinuo · guion</span>
+              </div>
+            </div>
+
+            <!-- Rail -->
+            <div class="rail">
+              <div class="card">
+                <h3 class="card-title">Acciones rápidas</h3>
+                <div class="quick">
+                  <button class="btn btn-primary btn-block" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/></svg>
+                    Registrar renovación
+                  </button>
+                  <div class="quick-row">
+                    <button class="btn btn-secondary" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v10c0 1.7 3.1 3 7 3s7-1.3 7-3v-10"/></svg>
+                      Comprar tokens
+                    </button>
+                    <button class="btn btn-secondary" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                      Gasto
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <h3 class="card-title">Caja de octubre</h3>
+                <dl class="cash">
+                  <div class="cash-row"><dt>Cobrado</dt><dd>S/ 1,485.00</dd></div>
+                  <div class="cash-row"><dt>Gastos</dt><dd>−S/ 210.00</dd></div>
+                  <div class="cash-row"><dt>Compra de tokens</dt><dd>−S/ 260.00</dd></div>
+                  <div class="cash-row cash-total"><dt>Neto</dt><dd>S/ 1,015.00</dd></div>
+                </dl>
+                <p class="card-note">Comprar tokens no cuenta como gasto del mes: el costo aparece cuando se consume en una renovación.</p>
+              </div>
+
+              <div class="card">
+                <h3 class="card-title">Seguimiento de hoy</h3>
+                <div class="fup-list">
+                  <div class="fup-row">
+                    <div class="fup-who">
+                      <div class="fup-name">Marisol Chávez Ttito</div>
+                      <div class="fup-when">Vence hoy · 18:30</div>
+                    </div>
+                    <span class="fup fup-conversacion">En conversación</span>
+                  </div>
+                  <div class="fup-row">
+                    <div class="fup-who">
+                      <div class="fup-name">Gladys Rojas Salazar</div>
+                      <div class="fup-when">Vence en 5 días</div>
+                    </div>
+                    <span class="fup fup-contactado">Contactado</span>
+                  </div>
+                  <div class="fup-row">
+                    <div class="fup-who">
+                      <div class="fup-name">Luis Alberto Ccori Mamani</div>
+                      <div class="fup-when">Vence en 3 días</div>
+                    </div>
+                    <span class="fup fup-confirmado">Confirmado</span>
+                  </div>
+                </div>
+                <a class="card-link" href="#dashboard">Ver seguimiento →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       B · REGISTRAR RENOVACIÓN
+       ====================================================================== -->
+  <section class="sec" id="renovacion" aria-labelledby="t-ren">
+    <header class="sec-head">
+      <span class="sec-kicker">Vista B</span>
+      <h2 class="sec-title" id="t-ren">Flujo crítico “Registrar renovación”</h2>
+      <p class="sec-note">Sheet 560 px sobre el dashboard · 2 clics, 0 teclas si las sugerencias son correctas</p>
+    </header>
+
+    <div class="stage">
+      <div class="stage-bg" aria-hidden="true">
+        <div class="stage-bg-inner">
+          <div class="ghost-line" style="width:220px;height:26px"></div>
+          <div class="ghost-line" style="width:340px;height:10px"></div>
+          <div class="ghost-grid">
+            <div class="ghost-metric"></div>
+            <div class="ghost-metric"></div>
+            <div class="ghost-metric"></div>
+            <div class="ghost-metric"></div>
+          </div>
+          <div class="ghost-line" style="width:120px;height:10px;margin-top:8px"></div>
+          <div class="ghost-row" style="height:36px"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+          <div class="ghost-row"></div>
+        </div>
+      </div>
+
+      <aside class="sheet" aria-labelledby="sheet-title">
+        <div class="sheet-head">
+          <div style="min-width:0">
+            <h3 class="sheet-title" id="sheet-title">Registrar renovación</h3>
+            <p class="sheet-sub">Cuenta de Julio César Mendoza Ríos · 912 445 780</p>
+          </div>
+          <button class="btn btn-ghost btn-icon" type="button" aria-label="Cerrar" style="margin-left:auto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+
+        <div class="sheet-body">
+          <!-- Cliente -->
+          <div class="field">
+            <div class="label-row">
+              <label class="label" for="f-cuenta">Cuenta IPTV</label>
+              <span class="chip-suggest">Cliente fijado</span>
+            </div>
+            <div class="readonly-chip">
+              <span class="avatar">JM</span>
+              <span>jmendoza_3d</span>
+              <span class="muted" style="font-weight:400">· vence hoy 22:00</span>
+            </div>
+          </div>
+
+          <!-- Plan y precio -->
+          <div class="row2">
+            <div class="field">
+              <label class="label" for="f-plan">Plan</label>
+              <div class="selwrap">
+                <select class="select" id="f-plan">
+                  <option>1 mes / 3 dispositivos</option>
+                  <option>1 mes / 1 dispositivo</option>
+                  <option>3 meses / 3 dispositivos</option>
+                  <option>6 meses / 3 dispositivos</option>
+                  <option>12 meses / 3 dispositivos</option>
+                </select>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <p class="hint">Precio de lista S/ 15.00 · 1 token</p>
+            </div>
+
+            <div class="field">
+              <label class="label" for="f-precio">Precio acordado</label>
+              <div class="iwrap">
+                <span class="affix">S/</span>
+                <input class="input pad-l tnum" id="f-precio" type="text" inputmode="decimal" value="15.00">
+              </div>
+              <p class="hint">Puede diferir del precio de lista.</p>
+            </div>
+          </div>
+
+          <!-- Tokens y tipo -->
+          <div class="row2">
+            <div class="field">
+              <label class="label" for="f-tokens">Tokens a consumir</label>
+              <div class="stepper">
+                <button type="button" aria-label="Quitar un token">−</button>
+                <input id="f-tokens" type="text" inputmode="numeric" value="1" aria-describedby="hint-tokens">
+                <button type="button" aria-label="Agregar un token">+</button>
+              </div>
+              <p class="hint" id="hint-tokens">Saldo: 14 → 13 tokens</p>
+            </div>
+
+            <div class="field">
+              <span class="label" id="lbl-tipo">Tipo de operación</span>
+              <div class="seg" role="group" aria-labelledby="lbl-tipo">
+                <label><input type="radio" name="tipo" value="renovacion" checked><span>Renovación</span></label>
+                <label><input type="radio" name="tipo" value="activacion"><span>Activación</span></label>
+              </div>
+              <p class="hint">Extiende el vencimiento actual.</p>
+            </div>
+          </div>
+
+          <div class="divider">Fechas</div>
+
+          <div class="field">
+            <label class="label" for="f-operacion">Fecha y hora de la operación</label>
+            <div class="iwrap">
+              <input class="input" id="f-operacion" type="text" value="21 oct 2026 · 09:42" inputmode="numeric">
+              <svg class="icon-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+            </div>
+            <p class="hint">Zona America/Lima (UTC−5).</p>
+          </div>
+
+          <div class="field">
+            <div class="label-row">
+              <label class="label" for="f-vence">Nuevo vencimiento</label>
+              <span class="chip-suggest">Sugerido</span>
+            </div>
+            <div class="iwrap">
+              <input class="input" id="f-vence" type="text" value="21 nov 2026 · 22:00" aria-describedby="hint-vence">
+              <svg class="icon-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+            </div>
+            <p class="hint" id="hint-vence">1 mes desde el vencimiento actual (21 oct 2026 · 22:00). Editable: si lo cambias prevalece tu fecha.</p>
+          </div>
+
+          <div class="divider">Cobro</div>
+
+          <label class="switch" for="f-cobro">
+            <input type="checkbox" id="f-cobro" checked>
+            <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+            Registrar cobro ahora
+          </label>
+
+          <div class="row2">
+            <div class="field">
+              <label class="label" for="f-importe">Importe recibido</label>
+              <div class="iwrap">
+                <span class="affix">S/</span>
+                <input class="input pad-l tnum" id="f-importe" type="text" inputmode="decimal" value="15.00">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="f-metodo">Método</label>
+              <div class="selwrap">
+                <select class="select" id="f-metodo">
+                  <option>Yape</option>
+                  <option>Plin</option>
+                  <option>Transferencia</option>
+                  <option>Efectivo</option>
+                  <option>Otro</option>
+                </select>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label class="label" for="f-fecha-cobro">Fecha del cobro</label>
+              <input class="input" id="f-fecha-cobro" type="text" value="21 oct 2026 · 09:42">
+            </div>
+            <div class="field">
+              <label class="label" for="f-ref">Referencia</label>
+              <input class="input" id="f-ref" type="text" value="004821" placeholder="N.º de operación">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="f-notas">Notas de la operación <span class="muted" style="font-weight:400">(opcional)</span></label>
+            <textarea class="input" id="f-notas" rows="2" style="height:auto;padding:10px 12px;line-height:1.5" placeholder="Ej.: renovó por 1 mes, paga el 21 de cada mes."></textarea>
+          </div>
+        </div>
+
+        <div class="sheet-foot">
+          <div class="summary" aria-live="polite">
+            <span>Acordado <b>S/ 15.00</b></span>
+            <span>Costo de tokens <b>S/ 1.87</b></span>
+            <span>Margen estimado <b>S/ 13.13</b></span>
+          </div>
+          <div class="summary-line">
+            <span class="muted">Nuevo vencimiento: <b style="color:var(--color-text)">21 nov 2026 · 22:00</b></span>
+            <span class="muted">Tokens después: <b style="color:var(--color-text)">13</b></span>
+          </div>
+          <div class="sheet-actions">
+            <button class="btn btn-secondary" type="button">Cancelar</button>
+            <button class="btn btn-primary" type="button">Confirmar renovación</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       C · MÓVIL 375
+       ====================================================================== -->
+  <section class="sec" id="movil" aria-labelledby="t-mov">
+    <header class="sec-head">
+      <span class="sec-kicker">Vista C</span>
+      <h2 class="sec-title" id="t-mov">La misma tabla en móvil — 375 px</h2>
+      <p class="sec-note">≤640 px de contenedor: tarjetas apiladas, sin scroll horizontal, acciones de 44 px</p>
+    </header>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-top">
+          <button class="btn btn-ghost btn-icon" type="button" aria-label="Abrir menú">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <span class="phone-title">Hoy</span>
+          <span style="margin-left:auto;display:flex;gap:4px">
+            <button class="btn btn-ghost btn-icon" type="button" aria-label="Buscar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+            </button>
+          </span>
+        </div>
+
+        <div class="phone-body">
+          <div>
+            <h1 class="page-title" style="font-size:var(--text-2xl)">Hoy, 21 de octubre</h1>
+            <p class="page-sub">2 vencen hoy · 6 en 7 días</p>
+          </div>
+
+          <div class="phone-metrics">
+            <div class="metric crit">
+              <span class="metric-label">Vencen hoy</span>
+              <span class="metric-value">2</span>
+            </div>
+            <div class="metric attn">
+              <span class="metric-label">7 días</span>
+              <span class="metric-value">6</span>
+            </div>
+            <div class="metric crit">
+              <span class="metric-label">Vencidas</span>
+              <span class="metric-value">3</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Tokens</span>
+              <span class="metric-value tnum">14</span>
+            </div>
+          </div>
+
+          <div class="phone-actions">
+            <button class="btn btn-primary" type="button">Renovar</button>
+            <button class="btn btn-secondary" type="button">WhatsApp</button>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head" style="padding:0 var(--space-2);overflow:auto">
+              <div class="tabs" role="tablist" aria-label="Filtro de vencimientos">
+                <a class="tab" role="tab" aria-selected="true" href="#movil">Hoy <span class="tab-count">2</span></a>
+                <a class="tab" role="tab" aria-selected="false" href="#movil">7 días</a>
+                <a class="tab" role="tab" aria-selected="false" href="#movil">Vencidas</a>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="vt">
+                <caption class="sr">Vencimientos en versión móvil</caption>
+                <thead>
+                  <tr><th scope="col">Estado</th><th scope="col">Cliente</th><th scope="col">Cuenta</th><th scope="col">Vence</th><th scope="col">Acciones</th></tr>
+                </thead>
+                <tbody>
+                  <tr data-status="VENCIDA">
+                    <td class="c-status"><span class="badge st-vencida"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3.7 3.7 6.3 6.3M6.3 3.7 3.7 6.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Vencida</span></td>
+                    <td class="c-client">Rosa Quispe Huamán</td>
+                    <td class="c-account"><span class="mono">rquispe01</span><span class="c-plan"> · 3 meses / 3 dispositivos</span></td>
+                    <td class="c-due ta-r"><span class="due">20 oct 2026</span><span class="rel">hace 1 día</span></td>
+                    <td class="c-actions">
+                      <div class="row-actions">
+                        <button class="btn btn-secondary btn-sm" type="button">WhatsApp</button>
+                        <button class="btn btn-primary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr data-status="URGENTE">
+                    <td class="c-status"><span class="badge st-urgente"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>Urgente</span></td>
+                    <td class="c-client">Julio César Mendoza Ríos</td>
+                    <td class="c-account"><span class="mono">jmendoza_3d</span><span class="c-plan"> · 1 mes / 3 dispositivos</span></td>
+                    <td class="c-due ta-r"><span class="due">21 oct 2026</span><span class="rel">hoy · 22:00</span></td>
+                    <td class="c-actions">
+                      <div class="row-actions">
+                        <button class="btn btn-secondary btn-sm" type="button">WhatsApp</button>
+                        <button class="btn btn-primary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr data-status="URGENTE">
+                    <td class="c-status"><span class="badge st-urgente"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>Urgente</span></td>
+                    <td class="c-client">Marisol Chávez Ttito</td>
+                    <td class="c-account"><span class="mono">mchavez.tt</span><span class="c-plan"> · 1 mes / 1 dispositivo</span></td>
+                    <td class="c-due ta-r"><span class="due">21 oct 2026</span><span class="rel">hoy · 18:30</span></td>
+                    <td class="c-actions">
+                      <div class="row-actions">
+                        <button class="btn btn-secondary btn-sm" type="button">WhatsApp</button>
+                        <button class="btn btn-primary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr data-status="URGENTE">
+                    <td class="c-status"><span class="badge st-urgente"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.3 9.2 8.6H.8z" fill="currentColor"/></svg>Urgente</span></td>
+                    <td class="c-client">Ana Lucía Paredes Vega</td>
+                    <td class="c-account"><span class="mono">alu.paredes</span><span class="c-plan"> · 1 mes / 3 dispositivos</span></td>
+                    <td class="c-due ta-r"><span class="due">23 oct 2026</span><span class="rel">en 2 días</span></td>
+                    <td class="c-actions">
+                      <div class="row-actions">
+                        <button class="btn btn-secondary btn-sm" type="button">WhatsApp</button>
+                        <button class="btn btn-primary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr data-status="PROXIMA">
+                    <td class="c-status"><span class="badge st-proxima"><svg class="mk" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 3.1V5l1.4 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Próxima</span></td>
+                    <td class="c-client">Gladys Rojas Salazar</td>
+                    <td class="c-account"><span class="mono">grojas.s</span><span class="c-plan"> · 1 mes / 3 dispositivos</span></td>
+                    <td class="c-due ta-r"><span class="due">26 oct 2026</span><span class="rel">en 5 días</span></td>
+                    <td class="c-actions">
+                      <div class="row-actions">
+                        <button class="btn btn-secondary btn-sm" type="button">WhatsApp</button>
+                        <button class="btn btn-primary btn-sm" type="button" aria-label="Registrar renovación"><span class="lbl-short">Renovar</span><span class="lbl-long">Registrar renovación</span></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Caja de octubre</h3>
+            <dl class="cash">
+              <div class="cash-row"><dt>Cobrado</dt><dd>S/ 1,485.00</dd></div>
+              <div class="cash-row"><dt>Gastos</dt><dd>−S/ 210.00</dd></div>
+              <div class="cash-row cash-total"><dt>Neto</dt><dd>S/ 1,015.00</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <nav class="phone-bottom" aria-label="Navegación principal">
+          <a href="#movil" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9.5 21v-6h5v6"/></svg>
+            Hoy
+          </a>
+          <a href="#movil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.2"/><path d="M4 19.5v-1.2A3.8 3.8 0 0 1 7.8 14.5h3.4a3.8 3.8 0 0 1 3.8 3.8v1.2"/><path d="M17 5.2a3 3 0 0 1 0 5.6"/></svg>
+            Clientes
+          </a>
+          <a href="#movil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Cuentas
+          </a>
+          <a href="#movil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="17" r="1.8"/></svg>
+            Más
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <p class="sec-note" style="margin:var(--space-4) 0 0;text-align:center">
+      La tabla y la lista de tarjetas son el mismo marcado: el contenedor de 351 px activa la conversión.
+      En la app real la conversión se dispara a ≤640 px de contenedor en cualquier viewport.
+    </p>
+  </section>
+
+</main>
+</body>
+</html>
+
