@@ -42,6 +42,31 @@ Requiere la contraseña de la base (`.secrets/supabase-db-password.txt`, fuera d
 Es el único modo de perder acceso **con** la cuenta válida. Reinsértala con el mismo `id`
 de `auth.users`. No hace falta recrear el usuario.
 
+### Caso D — perdí el autenticador TOTP
+Con MFA activo, `is_admin()` exige `aal2`: sin el código no se lee ni se escribe nada.
+El factor vive en `auth.mfa_factors` y **no** se puede quitar desde la app (pide el código actual).
+
+Desde una máquina de confianza, con la contraseña de la base:
+
+```sql
+-- 1. Localiza el factor del administrador (nunca borres a ciegas).
+select id, user_id, factor_type, status, friendly_name, created_at
+from auth.mfa_factors
+where user_id = '<uuid del admin>';
+
+-- 2. Elimina solo el factor TOTP verificado de ese usuario.
+delete from auth.mfa_factors
+where user_id = '<uuid del admin>'
+  and factor_type = 'totp'
+  and status = 'verified';
+```
+
+Al quedar sin factores verificados, `is_admin()` vuelve a aceptar `aal1` y el login pide solo
+la contraseña. Entra, cambia la contraseña y vuelve a enrolar el 2FA.
+
+Registra el incidente (fecha, motivo, quién lo hizo) y considera rotar la contraseña de la base
+si el acceso fue sospechoso.
+
 ## 2. Backup
 
 El plan gratuito de Supabase **no incluye backups automáticos ni PITR**.
