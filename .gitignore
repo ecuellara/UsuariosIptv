@@ -3,6 +3,7 @@ dist/
 coverage/
 
 # Entorno: nunca versionar claves reales
+.secrets/
 .env
 .env.*
 !.env.example

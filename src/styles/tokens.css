@@ -1,0 +1,530 @@
+/* =============================================================================
+   IPTV Manager — Design tokens v1.0
+   docs/04-diseno/tokens.css
+
+   Contrato: ningún valor de color, espaciado, radio, sombra o motion puede
+   escribirse fuera de este archivo. Los componentes consumen SOLO las variables
+   semánticas (sección 3 en adelante), nunca las primitivas (sección 1).
+
+   Verificación de contraste: docs/04-diseno/DESIGN.md §2.4 (ratios medidos con
+   WCAG 2.1, fondo real de cada superficie).
+
+   Mapeo a Tailwind: DESIGN.md §9. Las primitivas NO se exponen en el theme.
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   1. PRIMITIVAS — escala cerrada. No se agregan tonos nuevos sin actualizar
+      este archivo y la tabla de contraste de DESIGN.md.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Neutros fríos (base de toda la UI) */
+  --gray-0:   #ffffff;
+  --gray-25:  #fafbfc;
+  --gray-50:  #f5f7f9;
+  --gray-100: #eceff3;
+  --gray-200: #dde2e9;
+  --gray-300: #c4cbd5;
+  --gray-400: #98a2af;
+  --gray-500: #6c7683;
+  --gray-600: #545c68;
+  --gray-700: #3e4550;
+  --gray-800: #2a2f38;
+  --gray-900: #191d24;
+  --gray-950: #0e1116;
+
+  /* Índigo — acción primaria y foco (no se usa para estados de vigencia) */
+  --indigo-50:  #eef0ff;
+  --indigo-100: #e0e4ff;
+  --indigo-200: #c6cdfe;
+  --indigo-300: #a5b0fc;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4338ca;
+  --indigo-700: #3730a3;
+  --indigo-800: #2d287f;
+  --indigo-900: #241f63;
+
+  /* Verde — éxito y estado ACTIVA */
+  --green-50:  #e9f6ee;
+  --green-100: #cfebd9;
+  --green-300: #7fcb9b;
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --green-600: #15803d;
+  --green-700: #166534;
+  --green-800: #14532d;
+  --green-900: #052e16;
+
+  /* Ámbar — advertencia y estado PROXIMA */
+  --amber-50:  #fdf6e3;
+  --amber-100: #faebc8;
+  --amber-300: #f0ce85;
+  --amber-400: #fbbf24;
+  --amber-600: #b45309;
+  --amber-700: #92400e;
+  --amber-800: #7c3407;
+
+  /* Naranja — estado URGENTE */
+  --orange-50:  #fdede3;
+  --orange-100: #fad8c4;
+  --orange-300: #f5b48c;
+  --orange-400: #fb923c;
+  --orange-600: #c2410c;
+  --orange-700: #9a3412;
+  --orange-800: #7c2d12;
+
+  /* Rojo — peligro y estado VENCIDA */
+  --red-50:  #fcecec;
+  --red-100: #f8d6d6;
+  --red-300: #efa0a0;
+  --red-400: #f87171;
+  --red-500: #e5484d;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+  --red-800: #991b1b;
+
+  /* Azul cielo — información (distinto del índigo de acción) */
+  --sky-50:  #e8f3f9;
+  --sky-100: #cfe6f2;
+  --sky-300: #7dd3fc;
+  --sky-400: #38bdf8;
+  --sky-600: #0369a1;
+  --sky-700: #075985;
+  --sky-800: #0c4a6e;
+}
+
+/* -----------------------------------------------------------------------------
+   2. TEMA CLARO (por defecto)
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Superficies */
+  --color-bg:               var(--gray-50);   /* fondo de la app */
+  --color-surface:          var(--gray-0);    /* tarjetas, tablas, formularios */
+  --color-surface-raised:   var(--gray-0);    /* modal, popover, dropdown */
+  --color-surface-sunken:   var(--gray-100);  /* cabecera de tabla, bloques de código */
+  --color-surface-hover:    #f1f4f7;          /* hover de fila y de item de lista */
+  --color-surface-selected: var(--indigo-50); /* fila seleccionada */
+
+  /* Texto — ratios en DESIGN.md §2.4 */
+  --color-text:              var(--gray-900); /* 16.90:1 sobre surface */
+  --color-text-muted:        var(--gray-600); /* 6.76:1 sobre surface · 6.29:1 sobre bg */
+  --color-text-placeholder:  var(--gray-500); /* 4.61:1 — SOLO sobre surface */
+  --color-text-disabled:     var(--gray-400); /* exento AA (componente inactivo) */
+  --color-text-inverse:      var(--gray-0);
+
+  /* Bordes */
+  --color-border:          var(--gray-200); /* divisores decorativos (no requiere 3:1) */
+  --color-border-strong:   var(--gray-300); /* hover de divisor, separador de sección */
+  --color-border-control:  #848d99;         /* borde de input/checkbox: 3.36:1 sobre surface */
+  --color-border-selected: var(--indigo-600);
+
+  /* Acción primaria */
+  --color-primary:           var(--indigo-600); /* #4338ca · texto blanco 7.90:1 */
+  --color-primary-hover:     var(--indigo-700);
+  --color-primary-active:    var(--indigo-800);
+  --color-primary-fg:        var(--gray-0);
+  --color-primary-text:      var(--indigo-700); /* enlaces: 9.93:1 sobre surface */
+  --color-primary-soft:      var(--indigo-50);
+  --color-primary-soft-fg:   var(--indigo-700); /* 8.77:1 sobre primary-soft */
+  --color-primary-border:    var(--indigo-200);
+  --color-primary-soft-hover: var(--indigo-100);
+
+  /* Semánticos genéricos */
+  --color-success:        var(--green-600);
+  --color-success-text:   var(--green-700);
+  --color-success-soft:   var(--green-50);
+  --color-success-border: var(--green-300);
+
+  --color-warning:        var(--amber-600);
+  --color-warning-text:   var(--amber-700);
+  --color-warning-soft:   var(--amber-50);
+  --color-warning-border: var(--amber-300);
+
+  --color-danger:         var(--red-700);
+  --color-danger-text:    var(--red-700);
+  --color-danger-soft:    var(--red-50);
+  --color-danger-border:  var(--red-300);
+
+  --color-info:           var(--sky-600);
+  --color-info-text:      var(--sky-700);
+  --color-info-soft:      var(--sky-50);
+  --color-info-border:    var(--sky-300);
+
+  /* Foco — 7.90:1 sobre surface claro */
+  --color-focus: var(--indigo-600);
+  --ring-width: 2px;
+  --ring-offset: 2px;
+  --shadow-focus: 0 0 0 3px rgb(67 56 202 / 0.28);
+
+  /* Overlay de modal */
+  --color-overlay: rgb(14 17 22 / 0.48);
+
+  /* Chrome de navegación: oscuro en ambos temas (identidad sin logo) */
+  --color-nav-bg:          var(--gray-900);
+  --color-nav-text:        var(--gray-100);  /* 14.65:1 */
+  --color-nav-text-muted:  #a6afbb;          /* 7.62:1 */
+  --color-nav-hover:       #23282f;
+  --color-nav-active-bg:   #252946;
+  --color-nav-active-text: var(--gray-0);
+  --color-nav-active-bar:  var(--indigo-400);
+  --color-nav-border:      #2a2f38;
+  --color-nav-focus:       var(--indigo-300); /* 8.22:1 sobre nav-bg */
+
+  /* --- Estados de vigencia (v_account_status) ------------------------------
+     Cada estado se comunica por 3 canales: texto, forma del glifo y color.
+     -fg apto AA sobre -bg; -mark solo necesita 3:1 (marca no textual).
+  ------------------------------------------------------------------------ */
+  --status-activa:        var(--green-600);
+  --status-activa-fg:     var(--green-800);   /* 8.19:1 sobre -bg */
+  --status-activa-bg:     var(--green-50);
+  --status-activa-border: var(--green-300);
+  --status-activa-mark:   var(--green-600);   /* 4.51:1 sobre -bg */
+
+  --status-proxima:        var(--amber-600);
+  --status-proxima-fg:     var(--amber-800);  /* 8.28:1 */
+  --status-proxima-bg:     var(--amber-50);
+  --status-proxima-border: var(--amber-300);
+  --status-proxima-mark:   var(--amber-600);  /* 4.66:1 */
+
+  --status-urgente:        var(--orange-600);
+  --status-urgente-fg:     var(--orange-800); /* 8.21:1 */
+  --status-urgente-bg:     var(--orange-50);
+  --status-urgente-border: var(--orange-300);
+  --status-urgente-mark:   var(--orange-600); /* 4.54:1 */
+
+  /* VENCIDA es el único badge "sólido": máximo peso visual, texto blanco. */
+  --status-vencida:        var(--red-700);
+  --status-vencida-fg:     var(--gray-0);     /* 6.47:1 sobre -bg */
+  --status-vencida-bg:     var(--red-700);
+  --status-vencida-border: var(--red-700);
+  --status-vencida-mark:   var(--gray-0);
+
+  /* ARCHIVADA es el único con borde discontinuo y sin relleno. */
+  --status-archivada:        var(--gray-500);
+  --status-archivada-fg:     var(--gray-600); /* 5.86:1 sobre -bg */
+  --status-archivada-bg:     var(--gray-100);
+  --status-archivada-border: var(--gray-300);
+  --status-archivada-mark:   var(--gray-600);
+
+  /* --- Estados de seguimiento (followup_status) --------------------------- */
+  --followup-pendiente-fg:      var(--gray-700);
+  --followup-pendiente-bg:      var(--gray-100);
+  --followup-pendiente-border:  var(--gray-300);
+
+  --followup-contactado-fg:     var(--sky-800);
+  --followup-contactado-bg:     var(--sky-50);
+  --followup-contactado-border: var(--sky-300);
+
+  --followup-conversacion-fg:     var(--indigo-800);
+  --followup-conversacion-bg:     var(--indigo-50);
+  --followup-conversacion-border: var(--indigo-200);
+
+  --followup-confirmado-fg:     var(--green-700);
+  --followup-confirmado-bg:     var(--green-50);
+  --followup-confirmado-border: var(--green-300);
+
+  --followup-renovado-fg:     var(--green-800);
+  --followup-renovado-bg:     var(--green-100);
+  --followup-renovado-border: var(--green-600);
+
+  --followup-no-renovara-fg:     var(--red-800);
+  --followup-no-renovara-bg:     var(--red-50);
+  --followup-no-renovara-border: var(--red-300);
+
+  /* --- Medición de saldo de tokens ---------------------------------------- */
+  --meter-track: var(--gray-200);
+  --meter-ok:    var(--green-600);
+  --meter-low:   var(--amber-600);
+  --meter-empty: var(--red-700);
+
+  /* --- Tipografía ---------------------------------------------------------
+     Sin fuentes externas: el preview debe abrir offline y la app no debe
+     bloquear el render con un CDN de fuentes. */
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, "SF Mono", monospace;
+
+  --text-xs:   0.75rem;   /* 12 — metadatos, badges, cabecera de tabla */
+  --text-sm:   0.8125rem; /* 13 — texto secundario en tablas densas */
+  --text-base: 0.875rem;  /* 14 — cuerpo y celdas de tabla */
+  --text-lg:   1rem;      /* 16 — cuerpo largo y controles de formulario */
+  --text-xl:   1.125rem;  /* 18 — título de tarjeta / h3 */
+  --text-2xl:  1.375rem;  /* 22 — h2 de sección */
+  --text-3xl:  1.75rem;   /* 28 — h1 de página */
+  --text-4xl:  2.125rem;  /* 34 — cifra de métrica */
+  --text-5xl:  2.75rem;   /* 44 — cifra principal / wordmark */
+
+  --leading-none:    1;
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.45;
+  --leading-relaxed: 1.6;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --tracking-tight:  -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-caps:   0.06em;
+
+  /* --- Espaciado (base 4/8) ----------------------------------------------- */
+  --space-0-5: 2px;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-7:   28px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-14:  56px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
+
+  /* --- Radios ------------------------------------------------------------- */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;   /* controles: input, button, badge */
+  --radius-lg:   12px;  /* tarjetas y paneles */
+  --radius-xl:   16px;  /* modal, sheet */
+  --radius-full: 9999px;
+
+  /* --- Sombras (bajas: la jerarquía la hace el borde) --------------------- */
+  --shadow-xs: 0 1px 2px rgb(14 17 22 / 0.04);
+  --shadow-sm: 0 1px 3px rgb(14 17 22 / 0.07), 0 1px 2px rgb(14 17 22 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(14 17 22 / 0.10), 0 2px 4px -2px rgb(14 17 22 / 0.06);
+  --shadow-lg: 0 16px 40px -8px rgb(14 17 22 / 0.18), 0 4px 12px -4px rgb(14 17 22 / 0.10);
+  --shadow-sheet: -16px 0 48px -12px rgb(14 17 22 / 0.22);
+
+  /* --- Motion ------------------------------------------------------------- */
+  --duration-instant: 80ms;
+  --duration-fast:    120ms;
+  --duration-normal:  180ms;
+  --duration-slow:    260ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+
+  /* --- Layout ------------------------------------------------------------- */
+  --layout-sidebar-w:   236px;
+  --layout-sidebar-w-lg: 252px;
+  --layout-topbar-h:    56px;
+  --layout-content-max: 1320px;
+  --layout-gutter:      var(--space-4);  /* móvil */
+  --layout-gutter-lg:   var(--space-8);  /* escritorio */
+  --layout-sheet-w:     560px;
+  --layout-modal-w:     520px;
+  --layout-login-w:     400px;
+  --nav-item-h:         36px; /* ítem de sidebar; 44 en puntero grueso */
+
+  /* --- Controles y densidad ---------------------------------------------- */
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+  --control-min-touch: 44px; /* mínimo táctil absoluto */
+  --control-px:   var(--space-3);
+  --control-font-size: var(--text-lg); /* 16px: evita el zoom automático de iOS */
+  --row-h:         52px;
+  --row-h-compact: 40px;
+  --table-cell-px: var(--space-3);
+  --table-cell-py: var(--space-2);
+
+  /* --- Z-index ------------------------------------------------------------ */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-nav: 200;
+  --z-dropdown: 300;
+  --z-overlay: 400;
+  --z-sheet: 450;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+}
+
+/* -----------------------------------------------------------------------------
+   3. TEMA OSCURO — se redefine superficie, borde, texto y foco. Nunca se
+      invierte el color a ciegas.
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg:               var(--gray-950);
+  --color-surface:          var(--gray-900);
+  --color-surface-raised:   #1e232b;
+  --color-surface-sunken:   #14181e;
+  --color-surface-hover:    #1f242c;
+  --color-surface-selected: #232946;
+
+  --color-text:              var(--gray-100);  /* 14.65:1 sobre surface */
+  --color-text-muted:        #a6afbb;          /* 7.62:1 */
+  --color-text-placeholder:  #8b94a2;          /* 5.52:1 */
+  --color-text-disabled:     #5a626e;
+  --color-text-inverse:      var(--gray-950);
+
+  --color-border:          #2a2f38;
+  --color-border-strong:   #3e4550;
+  --color-border-control:  #6c7683;  /* 3.4:1 sobre surface oscuro */
+  --color-border-selected: var(--indigo-400);
+
+  --color-primary:           #4f46e5;  /* blanco 6.29:1 */
+  --color-primary-hover:     #5b5bef;  /* blanco 5.01:1 */
+  --color-primary-active:    var(--indigo-600); /* blanco 7.90:1 */
+  --color-primary-fg:        var(--gray-0);
+  --color-primary-text:      var(--indigo-300); /* 8.22:1 */
+  --color-primary-soft:      #232946;
+  --color-primary-soft-fg:   var(--indigo-200);
+  --color-primary-border:    #3c3f7a;
+  --color-primary-soft-hover: #2a3054;
+
+  --color-success:        var(--green-400);
+  --color-success-text:   #86efac;
+  --color-success-soft:   #12301f;
+  --color-success-border: #256b3f;
+
+  --color-warning:        var(--amber-400);
+  --color-warning-text:   #fcd34d;
+  --color-warning-soft:   #33280f;
+  --color-warning-border: #7c5a12;
+
+  --color-danger:         var(--red-400);
+  --color-danger-text:    #fca5a5;
+  --color-danger-soft:    #3a1a1a;
+  --color-danger-border:  #7f2a2a;
+
+  --color-info:           var(--sky-400);
+  --color-info-text:      #7dd3fc;
+  --color-info-soft:      #102a38;
+  --color-info-border:    #1f5a75;
+
+  --color-focus: var(--indigo-300); /* 8.22:1 sobre surface oscuro */
+  --shadow-focus: 0 0 0 3px rgb(165 176 252 / 0.32);
+
+  --color-overlay: rgb(0 0 0 / 0.66);
+
+  --color-nav-bg:          #12161b;
+  --color-nav-text:        var(--gray-100);
+  --color-nav-text-muted:  #9aa3af;
+  --color-nav-hover:       #1c2128;
+  --color-nav-active-bg:   #232946;
+  --color-nav-active-text: var(--gray-0);
+  --color-nav-active-bar:  var(--indigo-300);
+  --color-nav-border:      #23282f;
+  --color-nav-focus:       var(--indigo-300);
+
+  /* Estados sobre superficie oscura: tinte translúcido + texto claro */
+  --status-activa:        var(--green-400);
+  --status-activa-fg:     #86efac;              /* 7.78:1 sobre tinte 14% */
+  --status-activa-bg:     rgb(34 197 94 / 0.14);
+  --status-activa-border: rgb(34 197 94 / 0.38);
+  --status-activa-mark:   var(--green-400);
+
+  --status-proxima:        var(--amber-400);
+  --status-proxima-fg:     #fcd34d;             /* 8.46:1 */
+  --status-proxima-bg:     rgb(251 191 36 / 0.14);
+  --status-proxima-border: rgb(251 191 36 / 0.38);
+  --status-proxima-mark:   var(--amber-400);
+
+  --status-urgente:        var(--orange-400);
+  --status-urgente-fg:     #fdba8c;             /* 7.48:1 */
+  --status-urgente-bg:     rgb(251 146 60 / 0.15);
+  --status-urgente-border: rgb(251 146 60 / 0.40);
+  --status-urgente-mark:   var(--orange-400);
+
+  /* VENCIDA sigue siendo sólido: mismo par que en claro, no se invierte. */
+  --status-vencida:        var(--red-700);
+  --status-vencida-fg:     var(--gray-0);
+  --status-vencida-bg:     var(--red-700);
+  --status-vencida-border: var(--red-600);
+  --status-vencida-mark:   var(--gray-0);
+
+  --status-archivada:        #8b94a2;
+  --status-archivada-fg:     #a6afbb;           /* 6.61:1 sobre tinte 10% */
+  --status-archivada-bg:     rgb(148 163 184 / 0.10);
+  --status-archivada-border: rgb(148 163 184 / 0.30);
+  --status-archivada-mark:   #8b94a2;
+
+  --followup-pendiente-fg:      #c4cbd5;
+  --followup-pendiente-bg:      #23282f;
+  --followup-pendiente-border:  #3e4550;
+
+  --followup-contactado-fg:     #7dd3fc;
+  --followup-contactado-bg:     #102a38;
+  --followup-contactado-border: #1f5a75;
+
+  --followup-conversacion-fg:     var(--indigo-200);
+  --followup-conversacion-bg:     #232946;
+  --followup-conversacion-border: #3c3f7a;
+
+  --followup-confirmado-fg:     #86efac;
+  --followup-confirmado-bg:     #12301f;
+  --followup-confirmado-border: #256b3f;
+
+  --followup-renovado-fg:     var(--gray-950);
+  --followup-renovado-bg:     #4ade80;
+  --followup-renovado-border: #4ade80;
+
+  --followup-no-renovara-fg:     #fca5a5;
+  --followup-no-renovara-bg:     #3a1a1a;
+  --followup-no-renovara-border: #7f2a2a;
+
+  --meter-track: #2a2f38;
+  --meter-ok:    var(--green-400);
+  --meter-low:   var(--amber-400);
+  --meter-empty: var(--red-400);
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.40);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.55), 0 2px 4px -2px rgb(0 0 0 / 0.40);
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.65), 0 4px 12px -4px rgb(0 0 0 / 0.45);
+  --shadow-sheet: -16px 0 48px -12px rgb(0 0 0 / 0.70);
+}
+
+/* -----------------------------------------------------------------------------
+   4. PUNTERO GRUESO — todo control alcanza 44px de alto real.
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  :root {
+    --control-h-sm: 44px;
+    --control-h-md: 44px;
+    --control-h-lg: 52px;
+    --row-h: 56px;
+    --nav-item-h: 44px;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   5. MOVIMIENTO REDUCIDO — no se elimina información, solo la animación.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0ms;
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+    --duration-slow: 0ms;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   6. FOCO GLOBAL — no se elimina sin reemplazo visible.
+      Doble anillo: contorno de 2px + offset de 2px, visible sobre cualquier
+      superficie porque el offset muestra el fondo, no el elemento.
+   -------------------------------------------------------------------------- */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--ring-width) solid var(--color-focus);
+  outline-offset: var(--ring-offset);
+  box-shadow: var(--shadow-focus);
+}
+
+/* En el chrome oscuro el foco cambia de token para mantener >=3:1. */
+[data-chrome="dark"] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: var(--color-nav-focus);
+  box-shadow: 0 0 0 3px rgb(165 176 252 / 0.30);
+}

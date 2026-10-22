@@ -1,0 +1,179 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    title: string
+    /** Rutas que se pueden abrir sin sesión (solo /login). */
+    public?: boolean
+    /** Contenido informativo del módulo planificado (slice 2). */
+    pending?: {
+      summary: string
+      items: string[]
+    }
+  }
+}
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/LoginView.vue'),
+    meta: { title: 'Iniciar sesión', public: true },
+  },
+  {
+    path: '/sin-acceso',
+    name: 'forbidden',
+    component: () => import('@/views/ForbiddenView.vue'),
+    meta: { title: 'Sin acceso' },
+  },
+  {
+    path: '/',
+    name: 'dashboard',
+    component: () => import('@/views/DashboardView.vue'),
+    meta: { title: 'Hoy' },
+  },
+  {
+    path: '/clientes',
+    name: 'customers',
+    component: () => import('@/views/CustomersView.vue'),
+    meta: { title: 'Clientes' },
+  },
+  {
+    path: '/clientes/:customerId',
+    name: 'customer-detail',
+    component: () => import('@/views/CustomerDetailView.vue'),
+    meta: { title: 'Ficha de cliente' },
+  },
+  {
+    path: '/cuentas',
+    name: 'accounts',
+    component: () => import('@/views/AccountsView.vue'),
+    meta: { title: 'Cuentas IPTV' },
+  },
+  {
+    path: '/seguimiento',
+    name: 'followup',
+    component: () => import('@/views/ModulePendingView.vue'),
+    meta: {
+      title: 'Seguimiento',
+      pending: {
+        summary:
+          'Aquí vivirán las conversaciones de renovación: a quién se escribió, qué respondió y cuándo toca volver a contactarlo.',
+        items: [
+          'Bandeja por estado de seguimiento (pendiente, contactado, en conversación, confirmado).',
+          'Historial de contactos con el mensaje enviado como snapshot.',
+          'Registrar respuesta y próximo seguimiento por RPC auditado.',
+        ],
+      },
+    },
+  },
+  {
+    path: '/renovaciones',
+    name: 'renewals',
+    component: () => import('@/views/ModulePendingView.vue'),
+    meta: {
+      title: 'Renovaciones',
+      pending: {
+        summary:
+          'El registro de la operación que ya hiciste en el panel del proveedor: plan, fecha sugerida editable, cobro y margen.',
+        items: [
+          'Sheet “Registrar renovación” con fecha sugerida por add_months().',
+          'Cobros y reversión con motivo, idempotencia y auditoría.',
+          'Resumen de acordado, cobrado, pendiente y margen por SQL.',
+        ],
+      },
+    },
+  },
+  {
+    path: '/tokens',
+    name: 'tokens',
+    component: () => import('@/views/ModulePendingView.vue'),
+    meta: {
+      title: 'Tokens',
+      pending: {
+        summary:
+          'El inventario de tokens con su costo congelado por consumo. Comprar tokens sale de caja pero no es un gasto del mes.',
+        items: [
+          'Compras, ajustes y libro de movimientos (solo RPC).',
+          'Saldo, costo promedio y valor del inventario calculados en SQL.',
+          'Alerta cuando el saldo baja del mínimo configurado.',
+        ],
+      },
+    },
+  },
+  {
+    path: '/finanzas',
+    name: 'finance',
+    component: () => import('@/views/ModulePendingView.vue'),
+    meta: {
+      title: 'Finanzas',
+      pending: {
+        summary:
+          'La caja del mes desde una sola vista: cobros, gastos y compra de tokens, sin duplicar el egreso.',
+        items: [
+          'Movimientos de caja con dirección explícita (entrada/salida).',
+          'Totales del mes calculados en SQL, no en el navegador.',
+          'Gastos por categoría y exportación de lo que devuelve SQL.',
+        ],
+      },
+    },
+  },
+  {
+    path: '/configuracion',
+    name: 'settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { title: 'Configuración' },
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: () => import('@/views/NotFoundView.vue'),
+    meta: { title: 'Página no encontrada', public: true },
+  },
+]
+
+export const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, behavior: 'smooth' }
+    return { top: 0 }
+  },
+})
+
+router.beforeEach(async (to) => {
+  const session = useSessionStore()
+  await session.ensureInitialized()
+
+  if (to.meta.public === true) {
+    if (to.name === 'login' && session.isAuthenticated) {
+      return { name: 'dashboard' }
+    }
+    return true
+  }
+
+  if (!session.hasSession) {
+    return {
+      name: 'login',
+      query: to.fullPath === '/' ? {} : { redirect: to.fullPath },
+    }
+  }
+
+  if (session.access === 'denied') {
+    return to.name === 'forbidden' ? true : { name: 'forbidden' }
+  }
+
+  if (to.name === 'forbidden' && session.access === 'granted') {
+    return { name: 'dashboard' }
+  }
+
+  return true
+})
+
+router.afterEach((to) => {
+  document.title = to.meta.title
+    ? `${to.meta.title} · IPTV Manager`
+    : 'IPTV Manager'
+})

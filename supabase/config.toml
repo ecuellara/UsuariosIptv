@@ -54,7 +54,9 @@ refresh_token_reuse_interval = 10
 enable_signup = false
 
 [auth.email]
-enable_signup = false
+# OJO: esta clave controla que el proveedor de email esté habilitado (login).
+# El registro público se cierra con [auth] enable_signup = false, no aquí.
+enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
