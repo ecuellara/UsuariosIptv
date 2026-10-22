@@ -84,7 +84,11 @@ function onInput(): void {
   const result = parse(text.value)
   if ('value' in result) {
     model.value = result.value
+    return
   }
+  /* Un campo vacío no conserva el último importe válido: si es obligatorio,
+     el formulario debe poder rechazarlo (y enfocar este input). */
+  if (text.value.trim().length === 0) model.value = ''
 }
 
 function selectAll(event: FocusEvent): void {

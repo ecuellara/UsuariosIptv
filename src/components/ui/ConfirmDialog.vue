@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import AppButton from './AppButton.vue'
 import AppIcon from './AppIcon.vue'
 import AppTextarea from './AppTextarea.vue'
 import AppModal from './AppModal.vue'
 
 /* COMPONENTES.md §17. El cuerpo dice qué va a pasar; el botón nombra la
-   acción. Con motivo obligatorio, confirmar se bloquea hasta 5 caracteres. */
+   acción. Con motivo obligatorio, confirmar se bloquea hasta 5 caracteres.
+   El foco inicial lo pone AppModal en el título; desde ahí se tabula al
+   motivo, al botón de cancelar y al de confirmar. */
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -35,18 +37,13 @@ const props = withDefaults(
 const emit = defineEmits<{ confirm: [reason: string] }>()
 
 const reason = ref('')
-const cancelRef = ref<InstanceType<typeof AppButton> | null>(null)
 const reasonError = ref<string | null>(null)
 
-watch(open, async (value) => {
+watch(open, (value) => {
   if (!value) {
     reason.value = ''
     reasonError.value = null
-    return
   }
-  await nextTick()
-  const element = cancelRef.value?.$el
-  if (element instanceof HTMLElement) element.focus()
 })
 
 function confirm(): void {
@@ -95,7 +92,7 @@ function confirm(): void {
     <p v-if="error" class="mt-3 text-sm text-danger-text" role="alert">{{ error }}</p>
 
     <template #footer>
-      <AppButton ref="cancelRef" variant="secondary" :disabled="loading" @click="open = false">
+      <AppButton variant="secondary" :disabled="loading" @click="open = false">
         {{ cancelLabel }}
       </AppButton>
       <AppButton

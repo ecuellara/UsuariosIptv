@@ -108,14 +108,18 @@ function clearFilters(): void {
 }
 
 const columns: TableColumn[] = [
-  { key: 'status', label: 'Vigencia', width: '105px', card: 'start' },
+  { key: 'status', label: 'Vigencia', width: '92px', card: 'start' },
   { key: 'customer', label: 'Cliente y cuenta', card: 'primary' },
-  { key: 'phone', label: 'Teléfono', width: '120px', card: 'meta', mobileLabel: 'Teléfono' },
-  { key: 'expires', label: 'Vencimiento', width: '120px', align: 'right', card: 'end', mobileLabel: 'Vencimiento' },
-  { key: 'followup', label: 'Seguimiento', width: '150px', mobileLabel: 'Seguimiento' },
-  { key: 'lastContact', label: 'Último contacto', width: '130px', mobileLabel: 'Último contacto' },
-  { key: 'next', label: 'Próxima acción', width: '130px', card: 'meta', mobileLabel: 'Próxima acción' },
-  { key: 'actions', label: 'Acciones', width: '180px', align: 'right', card: 'actions' },
+  { key: 'expires', label: 'Vencimiento', width: '104px', align: 'right', card: 'end', mobileLabel: 'Vencimiento' },
+  { key: 'followup', label: 'Seguimiento', width: '132px', mobileLabel: 'Seguimiento' },
+  {
+    key: 'contact',
+    label: 'Contacto y próxima',
+    width: '136px',
+    card: 'meta',
+    mobileLabel: 'Contacto y próxima acción',
+  },
+  { key: 'actions', label: 'Acciones', width: '120px', align: 'right', card: 'actions' },
 ]
 
 const composerOpen = ref(false)
@@ -213,6 +217,7 @@ function isOverdue(value: string | null): boolean {
       :error="loadError"
       error-message="No se pudo cargar la bandeja de seguimiento."
       caption="Bandeja de seguimiento por cuenta"
+      compact
       @retry="inboxQuery.refetch()"
     >
       <template #cell-status="{ row }">
@@ -220,14 +225,13 @@ function isOverdue(value: string | null): boolean {
       </template>
 
       <template #cell-customer="{ row }">
-        <span class="block truncate font-medium">{{ row.account.customerName }}</span>
+        <span class="block font-medium">{{ row.account.customerName }}</span>
         <span class="block truncate font-mono text-xs text-content-muted">
           {{ row.account.externalUsername }}
         </span>
-      </template>
-
-      <template #cell-phone="{ row }">
-        <span class="tabular whitespace-nowrap">{{ formatPhone(row.account.phone) }}</span>
+        <span class="block truncate text-xs tabular text-content-muted">
+          {{ formatPhone(row.account.phone) }}
+        </span>
       </template>
 
       <template #cell-expires="{ row }">
@@ -250,30 +254,30 @@ function isOverdue(value: string | null): boolean {
         </div>
       </template>
 
-      <template #cell-lastContact="{ row }">
-        <template v-if="row.followup.lastContactAt">
-          <span class="block text-sm tabular">{{ formatDate(row.followup.lastContactAt) }}</span>
-          <span class="block text-xs text-content-muted">
-            {{ limaTimeKey(row.followup.lastContactAt) }} · Lima
-          </span>
-        </template>
-        <span v-else class="text-sm text-content-muted">Sin contacto</span>
-      </template>
-
-      <template #cell-next="{ row }">
-        <template v-if="row.followup.nextFollowupAt">
-          <span class="block text-sm tabular">{{ formatDate(row.followup.nextFollowupAt) }}</span>
-          <span class="block text-xs text-content-muted">
-            {{ limaTimeKey(row.followup.nextFollowupAt) }} · Lima
-          </span>
-          <span
-            v-if="isOverdue(row.followup.nextFollowupAt)"
-            class="text-xs text-warning-text"
-          >
-            Atrasada
-          </span>
-        </template>
-        <span v-else class="text-sm text-content-muted">Sin programar</span>
+      <!-- Último contacto y próxima acción comparten celda: dos líneas y sin
+           empujar columnas esenciales bajo la columna fija de acciones. -->
+      <template #cell-contact="{ row }">
+        <span class="block truncate text-xs tabular text-content">
+          <span class="text-content-muted">Últ. </span>
+          <template v-if="row.followup.lastContactAt">
+            {{ formatDate(row.followup.lastContactAt) }} · {{ limaTimeKey(row.followup.lastContactAt) }}
+          </template>
+          <span v-else class="text-content-muted">sin contacto</span>
+        </span>
+        <span
+          v-if="row.followup.nextFollowupAt"
+          class="block truncate text-xs tabular text-content"
+        >
+          <span class="text-content-muted">Próx. </span>
+          {{ formatDate(row.followup.nextFollowupAt) }} · {{ limaTimeKey(row.followup.nextFollowupAt) }}
+        </span>
+        <span v-else class="block text-xs text-content-muted">Próx. sin programar</span>
+        <span
+          v-if="row.followup.nextFollowupAt && isOverdue(row.followup.nextFollowupAt)"
+          class="block text-xs text-warning-text"
+        >
+          Atrasada
+        </span>
       </template>
 
       <template #cell-actions="{ row }">
@@ -283,11 +287,11 @@ function isOverdue(value: string | null): boolean {
             class="btn"
             data-variant="secondary"
             data-size="sm"
+            data-icon-only="true"
             :aria-label="`Abrir WhatsApp para ${row.account.customerName}`"
             @click="openComposer(row)"
           >
             <AppIcon name="whatsapp" :size="16" />
-            Abrir WhatsApp
           </button>
           <button
             type="button"

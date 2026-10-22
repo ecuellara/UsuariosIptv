@@ -20,7 +20,31 @@ Regla: cada fila se escribe el mismo día. Sin fecha, archivo y resultado, la fi
 
 | Fecha | Archivo restaurado | Descifrado | Destino | Resultado | Conteos OK | Diferencias | Responsable | Notas |
 |---|---|---|---|---|---|---|---|---|
-| `<AAAA-MM-DD>` | `<...dump.age>` | `<age --decrypt OK>` | `<supabase start / proyecto free de prueba>` | `<OK / FALLO>` | `<sí/no>` | `<ninguna / detalle>` | `<nombre>` | `<observaciones>` |
+| 2026-10-21 | `verify-20261021-231156.dump` (409,3 KB, sin cifrar) | N/A (en claro) | Contenedor `postgres:17` desechable en Docker | **OK en el núcleo**, exit 1 por extensiones | **Sí** | Ninguna en tablas de negocio | Lead | 15 tablas, 7 vistas, 7 RPC, 5 planes, 4 plantillas, `token_stock` 0. 393 errores **no-core** por *event triggers* de `extensions` y propiedad de extensiones (`pgrst_ddl_watch`, `pgrst_drop_watch`). Ver nota metodológica. |
+
+### Nota metodológica: qué significa `pg_restore` con exit 1
+
+Un dump de Supabase incluye extensiones (`pg_graphql`, `pg_net`, `supabase_vault`, `pgsodium`, etc.)
+y *event triggers* propiedad de `supabase_admin`. Al restaurar en un Postgres **sin el bootstrap de
+Supabase**, esos objetos fallan aunque las tablas y los datos se restauren bien.
+
+Por eso el criterio de éxito no es el código de salida, sino:
+
+```sql
+select
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind = 'r')  as tablas,
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind = 'v')  as vistas,
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname like 'rpc_%') as rpc,
+  (select count(*) from public.plans)                as planes,
+  (select count(*) from public.whatsapp_templates)   as plantillas,
+  (select quantity from public.token_stock)          as stock;
+```
+
+Debe coincidir exactamente con el origen. Para una prueba 1:1 de la plataforma, restaurar sobre un
+**proyecto Supabase de prueba**, no sobre un Postgres limpio.
 
 ### Checklist de la prueba
 

@@ -620,6 +620,11 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Tablas densas de trabajo (seguimiento): mismo diseño con menos padding. */
+  .dt-container[data-compact='true'] {
+    --table-cell-px: var(--space-2);
+  }
+
   .dt {
     width: 100%;
     min-width: 100%;
@@ -863,6 +868,23 @@
 
     .dt-form tbody td.dt-card-primary::before {
       display: none;
+    }
+  }
+
+  /* Formulario editable (planes): en un contenedor mediano la tarjeta usa dos
+     columnas en vez de apilar siete campos (529 px de alto por fila a 1024). */
+  @container (min-width: 420px) and (max-width: 639px) {
+    .dt-form tbody tr {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dt-form tbody td {
+      grid-column: auto;
+    }
+
+    .dt-form tbody td.dt-card-primary,
+    .dt-form tbody td.dt-card-actions {
+      grid-column: 1 / -1;
     }
   }
 

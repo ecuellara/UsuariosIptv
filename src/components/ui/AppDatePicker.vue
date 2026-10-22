@@ -164,7 +164,6 @@ const quickTimes: ReadonlyArray<{ label: string; hour: string; minute: string }>
             :disabled="disabled"
             :aria-invalid="invalid || undefined"
             :aria-describedby="describedBy"
-            :aria-required="required || undefined"
           >
             <span
               class="truncate"

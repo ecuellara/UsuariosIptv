@@ -11,7 +11,7 @@ const model = defineModel<string>({ required: true })
 
 <template>
   <div
-    class="flex items-center gap-1 overflow-x-auto pb-1"
+    class="flex flex-wrap items-center gap-1"
     role="group"
     :aria-label="label"
   >

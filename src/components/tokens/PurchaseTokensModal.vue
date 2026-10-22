@@ -106,7 +106,15 @@ async function save(): Promise<void> {
   const result = await validate()
   if (!result.valid) {
     await nextTick()
-    document.querySelector<HTMLElement>('[role="dialog"] [aria-invalid="true"]')?.focus()
+    /* Foco en el control inválido, no en el contenedor del MoneyInput. */
+    document
+      .querySelector<HTMLElement>(
+        '[role="dialog"] input[aria-invalid="true"], ' +
+          '[role="dialog"] textarea[aria-invalid="true"], ' +
+          '[role="dialog"] select[aria-invalid="true"], ' +
+          '[role="dialog"] button[aria-invalid="true"]',
+      )
+      ?.focus()
     return
   }
 

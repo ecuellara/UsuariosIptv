@@ -108,10 +108,15 @@ router.beforeEach(async (to) => {
   if (!session.hasSession) {
     return {
       name: 'login',
-      query: to.fullPath === '/' ? {} : { redirect: to.fullPath },
+      query: {
+        ...(to.fullPath === '/' ? {} : { redirect: to.fullPath }),
+        ...(session.expiredNotice ? { expired: '1' } : {}),
+      },
     }
   }
 
+  /* `access === 'denied'` significa que no hay fila en `profiles`. Un fallo de
+     red deja `access` en 'unknown' y la app pinta la pantalla de reintento. */
   if (session.access === 'denied') {
     return to.name === 'forbidden' ? true : { name: 'forbidden' }
   }

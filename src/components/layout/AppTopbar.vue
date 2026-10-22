@@ -63,7 +63,6 @@ function toggleTheme(): void {
       <RouterLink
         :to="{ name: 'settings' }"
         class="hidden min-h-11 items-center gap-2 rounded-sm px-2 hover:bg-surface-hover lg:flex"
-        :aria-label="`Perfil de ${session.displayName}`"
       >
         <span
           class="flex size-8 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary-soft-fg"
@@ -72,6 +71,7 @@ function toggleTheme(): void {
           {{ initials }}
         </span>
         <span class="hidden truncate text-sm text-content xl:block">{{ session.displayName }}</span>
+        <span class="sr-only"> · Perfil</span>
       </RouterLink>
     </div>
   </header>

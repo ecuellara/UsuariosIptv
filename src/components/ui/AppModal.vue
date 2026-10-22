@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref, type ComponentPublicInstance } from 'vue'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import AppIcon from './AppIcon.vue'
 
@@ -16,6 +17,16 @@ withDefaults(
   }>(),
   { description: undefined, width: 'md', preventClose: false },
 )
+
+const titleEl = ref<ComponentPublicInstance | null>(null)
+
+/* El foco inicial va al título, no al botón "Cerrar". */
+async function focusTitle(event: Event): Promise<void> {
+  event.preventDefault()
+  await nextTick()
+  const element = titleEl.value?.$el
+  if (element instanceof HTMLElement) element.focus()
+}
 
 function guard(event: Event): void {
   event.preventDefault()
@@ -35,13 +46,21 @@ function guard(event: Event): void {
           zIndex: 'var(--z-modal)',
           maxWidth: width === 'sm' ? '400px' : width === 'lg' ? '720px' : 'var(--layout-modal-w)',
         }"
+        aria-modal="true"
+        @open-auto-focus="focusTitle"
         @escape-key-down="preventClose ? guard($event) : undefined"
         @pointer-down-outside="preventClose ? guard($event) : undefined"
         @interact-outside="preventClose ? guard($event) : undefined"
       >
         <header class="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
           <div class="min-w-0">
-            <DialogTitle class="text-xl font-semibold text-content">{{ title }}</DialogTitle>
+            <DialogTitle
+              ref="titleEl"
+              tabindex="-1"
+              class="text-xl font-semibold text-content outline-none"
+            >
+              {{ title }}
+            </DialogTitle>
             <DialogDescription v-if="description" class="mt-1 text-sm text-content-muted">
               {{ description }}
             </DialogDescription>

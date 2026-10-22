@@ -277,10 +277,10 @@ function exportSummary(): void {
               <AppSkeleton v-if="cashLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(cashValues.income) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               {{ formatInteger(cashValues.paymentsCount) }}
               {{ cashValues.paymentsCount === 1 ? 'cobro' : 'cobros' }} en el mes
-            </p>
+            </dd>
           </div>
 
           <div class="rounded-md border border-border bg-surface-raised p-3">
@@ -289,9 +289,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="cashLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(cashValues.operating) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               Egresos sin compras de tokens
-            </p>
+            </dd>
           </div>
 
           <div class="rounded-md border border-border bg-surface-raised p-3">
@@ -300,9 +300,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="cashLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(cashValues.tokenPurchases) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               Informativo: ya está dentro de los egresos
-            </p>
+            </dd>
           </div>
 
           <div class="rounded-md border border-border bg-surface-raised p-3">
@@ -314,9 +314,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="cashLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(cashValues.net) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               {{ cashValues.net < 0 ? 'El mes cierra en negativo' : 'Cobrado − egresos' }}
-            </p>
+            </dd>
           </div>
         </dl>
 
@@ -363,9 +363,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="profitLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(profitValues.agreedRevenue) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               Renovaciones confirmadas del mes
-            </p>
+            </dd>
           </div>
 
           <div class="rounded-md border border-border bg-surface-raised p-3">
@@ -374,9 +374,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="profitLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(profitValues.tokenCost) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               Costo congelado al renovar
-            </p>
+            </dd>
           </div>
 
           <div class="rounded-md border border-border bg-surface-raised p-3">
@@ -385,9 +385,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="profitLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(profitValues.operatingExpenses) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               Gastos del mes; nunca compras de tokens
-            </p>
+            </dd>
           </div>
 
           <div class="rounded-md border border-border bg-surface-raised p-3">
@@ -399,9 +399,9 @@ function exportSummary(): void {
               <AppSkeleton v-if="profitLoading" width="96px" height="24px" />
               <template v-else>{{ formatMoney(profitValues.grossMargin) }}</template>
             </dd>
-            <p class="mt-1 text-xs text-content-muted">
+            <dd class="mt-1 text-xs text-content-muted">
               {{ profitValues.grossMargin < 0 ? 'Margen negativo' : 'Ingreso − costos − gastos' }}
-            </p>
+            </dd>
           </div>
         </dl>
 

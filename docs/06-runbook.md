@@ -84,6 +84,11 @@ Nunca restaures sobre producción sin haber probado antes.
      (select quantity from public.token_stock)           as stock,
      (select coalesce(sum(amount),0) from public.v_cash_movements) as caja;
    ```
+   **Un dump de Supabase devuelve exit 1 en un Postgres limpio** por extensiones y *event triggers*
+   propiedad de `supabase_admin` (`pgrst_ddl_watch`, `pg_graphql`, `pg_net`, `supabase_vault`).
+   Eso no invalida la restauración: valida contando tablas, vistas, RPC y filas del núcleo
+   (ver `docs/backups.md` §2). Para una prueba 1:1 usa un proyecto Supabase de prueba, no un
+   contenedor genérico.
 4. Compara `token_stock.quantity` con `sum(quantity_delta)` de `token_movements`.
 5. Anota fecha, archivo y resultado en `docs/backups.md` (créalo el primer día).
 

@@ -14,6 +14,7 @@ import AppSheet from '@/components/ui/AppSheet.vue'
 import AppSwitch from '@/components/ui/AppSwitch.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import MoneyInput from '@/components/ui/MoneyInput.vue'
+import PurchaseTokensModal from '@/components/tokens/PurchaseTokensModal.vue'
 import { useDebouncedRef } from '@/composables/useDebouncedRef'
 import { useToast } from '@/composables/useToast'
 import { formatDateKey, formatDateTime, nowIso } from '@/lib/dates'
@@ -462,6 +463,13 @@ const stockShort = computed(
   () => stock.value !== null && tokensRequested.value > stock.value,
 )
 
+/* Compra de tokens desde el propio sheet: no se cierra la renovación en curso.
+   La compra invalida `tokens.all`, así que el saldo se refresca al volver. */
+const purchaseOpen = ref(false)
+watch(purchaseOpen, (isOpen) => {
+  if (!isOpen) void tokenQuery.refetch()
+})
+
 const estimatedCost = computed<number | null>(() => {
   if (!tokenSummary.value) return null
   return Math.round(tokensRequested.value * tokenSummary.value.avgUnitCost * 100) / 100
@@ -539,8 +547,13 @@ async function submit(): Promise<void> {
   const result = await validate()
   if (!result.valid) {
     await nextTick()
+    /* El foco va al control inválido (input/textarea/select/botón de combobox),
+       nunca al `div` que envuelve un MoneyInput. */
     const invalid = document.querySelector<HTMLElement>(
-      '[role="dialog"] [aria-invalid="true"]',
+      '[role="dialog"] input[aria-invalid="true"], ' +
+        '[role="dialog"] textarea[aria-invalid="true"], ' +
+        '[role="dialog"] select[aria-invalid="true"], ' +
+        '[role="dialog"] button[aria-invalid="true"]',
     )
     invalid?.focus()
     return
@@ -863,7 +876,13 @@ watch(open, async (isOpen) => {
 
         <AppAlert v-if="stockShort" variant="warning" title="No hay tokens suficientes">
           Necesitas {{ tokensRequested }} tokens y tienes {{ stock }}. Compra tokens para
-          continuar.
+          continuar sin cerrar esta renovación.
+          <template #actions>
+            <AppButton size="sm" variant="primary" @click="purchaseOpen = true">
+              <template #icon><AppIcon name="coins" :size="16" /></template>
+              Comprar tokens
+            </AppButton>
+          </template>
         </AppAlert>
         <AppAlert v-else-if="tokenUnavailable" variant="warning" title="Saldo de tokens no disponible">
           La vista de tokens no devolvió datos. Sin ese dato no se permite confirmar para no
@@ -969,7 +988,7 @@ watch(open, async (isOpen) => {
       <template v-else>
         <div class="flex w-full flex-col gap-2">
           <div
-            class="rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm"
+            class="rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm [@media(max-height:640px)]:py-1"
             aria-live="polite"
           >
             <div class="flex flex-wrap gap-x-3 gap-y-1">
@@ -995,13 +1014,13 @@ watch(open, async (isOpen) => {
                 </strong>
               </span>
             </div>
-            <p class="mt-1 text-xs text-content-muted">
+            <p class="mt-1 text-xs text-content-muted [@media(max-height:640px)]:hidden">
               Nuevo vencimiento:
               <span class="tabular">{{ values.newExpiration ? formatDateTime(values.newExpiration) : '—' }}</span>
               · Tokens después:
               <span class="tabular">{{ tokensAfter === null ? '—' : formatTokens(tokensAfter) }}</span>
             </p>
-            <p class="text-xs text-content-muted">
+            <p class="text-xs text-content-muted [@media(max-height:640px)]:hidden">
               El costo definitivo lo congela el servidor al confirmar.
               <template v-if="estimatedMargin !== null && estimatedMargin <= 0">
                 Margen negativo: revisa el precio o los tokens.
@@ -1025,4 +1044,6 @@ watch(open, async (isOpen) => {
       </template>
     </template>
   </AppSheet>
+
+  <PurchaseTokensModal v-model:open="purchaseOpen" />
 </template>

@@ -10,6 +10,9 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
 
 export const isSupabaseConfigured = url.length > 0 && anonKey.length > 0
 
+/** Clave de localStorage donde Supabase persiste la sesión. */
+export const AUTH_STORAGE_KEY = 'iptv-manager-session'
+
 if (!isSupabaseConfigured) {
   // Aviso de desarrollo: la app arranca, pero el login fallará con un mensaje
   // claro en pantalla en lugar de una pantalla en blanco.
@@ -26,7 +29,7 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      storageKey: 'iptv-manager-session',
+      storageKey: AUTH_STORAGE_KEY,
     },
     global: {
       headers: { 'x-application-name': 'iptv-manager' },

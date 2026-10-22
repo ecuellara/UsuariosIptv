@@ -348,7 +348,7 @@ function goToAccounts(): void {
       />
     </section>
 
-    <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_344px]">
+    <div class="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_344px]">
       <section class="flex min-w-0 flex-col gap-3" aria-labelledby="vencimientos">
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -461,7 +461,7 @@ function goToAccounts(): void {
                 class="btn"
                 data-variant="secondary"
                 data-size="sm"
-                :aria-label="`Registrar renovación de ${row.customerName}`"
+                :aria-label="`Renovar cuenta de ${row.customerName}`"
                 @click="openRenewal(row)"
               >
                 Renovar

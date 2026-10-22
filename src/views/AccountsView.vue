@@ -274,7 +274,7 @@ watch(() => route.query, () => void handleDeepLink(), { flush: 'post' })
             class="btn"
             data-variant="secondary"
             data-size="sm"
-            :aria-label="`Registrar renovación de ${row.externalUsername}`"
+            :aria-label="`Renovar cuenta de ${row.customerName}`"
             @click="openRenewal(row)"
           >
             Renovar

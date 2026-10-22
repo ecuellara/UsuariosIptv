@@ -37,6 +37,8 @@ const props = withDefaults(
     interactive?: boolean
     skeletonRows?: number
     retryLabel?: string
+    /** Celdas con padding horizontal reducido (tablas densas de trabajo). */
+    compact?: boolean
   }>(),
   {
     loading: false,
@@ -48,6 +50,7 @@ const props = withDefaults(
     interactive: false,
     skeletonRows: 6,
     retryLabel: 'Reintentar',
+    compact: false,
   },
 )
 
@@ -120,7 +123,7 @@ function onRowKeydown(row: T, event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div class="dt-container">
+  <div class="dt-container" :data-compact="compact ? 'true' : undefined">
     <p v-if="loading" class="sr-only" aria-live="polite">Cargando resultados…</p>
     <table class="dt">
       <caption class="sr-only">{{ caption }}</caption>

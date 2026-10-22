@@ -7,6 +7,7 @@ import { formatDateTime } from '@/lib/dates'
 import { toUserMessage } from '@/lib/errors'
 import { formatMoney, formatTokens } from '@/lib/format'
 import { queryKeys } from '@/lib/query-keys'
+import { restoredExpirationAfterReversal } from '@/lib/renewals'
 import { createIdempotencyKey, reverseRenewal } from '@/services/rpc'
 import type { RenewalSummary } from '@/types/domain'
 
@@ -18,8 +19,14 @@ import type { RenewalSummary } from '@/types/domain'
 const open = defineModel<boolean>('open', { default: false })
 
 const props = withDefaults(
-  defineProps<{ renewal?: RenewalSummary | null }>(),
-  { renewal: null },
+  defineProps<{
+    renewal?: RenewalSummary | null
+    /** Renovaciones de la misma cuenta, para anticipar la fecha restaurada. */
+    renewals?: RenewalSummary[] | null
+    /** `iptv_accounts.initial_expires_at`: último recurso del servidor. */
+    initialExpiresAt?: string | null
+  }>(),
+  { renewal: null, renewals: null, initialExpiresAt: null },
 )
 
 const emit = defineEmits<{ reversed: [] }>()
@@ -44,14 +51,25 @@ const body = computed(() => {
     renewal.tokensUsed > 0
       ? `Se devolverán ${formatTokens(renewal.tokensUsed)} al inventario al costo congelado. `
       : 'Esta renovación no consumió tokens. '
-  const expiration = renewal.previousExpiration
-    ? `El vencimiento de la cuenta volverá a ${formatDateTime(renewal.previousExpiration)}. `
+  /* La fecha restaurada sigue la regla del servidor: la última renovación no
+     revertida que queda, o el vencimiento inicial. Si el padre no pudo pasar
+     el historial completo, se usa el `previous_expiration` guardado. */
+  const restored =
+    props.renewals && props.initialExpiresAt
+      ? restoredExpirationAfterReversal(
+          props.renewals,
+          renewal.id,
+          props.initialExpiresAt,
+        )
+      : renewal.previousExpiration
+  const expiration = restored
+    ? `El vencimiento de la cuenta volverá a ${formatDateTime(restored)}. `
     : 'La cuenta volverá a su vencimiento inicial. '
   const paid =
     renewal.amountPaid > 0
-      ? `Esta renovación tiene cobros por ${formatMoney(renewal.amountPaid)}. La reversión no devuelve el dinero. `
+      ? `Esta renovación tiene cobros por ${formatMoney(renewal.amountPaid)}. La reversión no devuelve el dinero. Los pagos no se borran: quedan en la caja como un hecho histórico. `
       : ''
-  return `${tokens}${expiration}${paid}Los pagos no se borran: quedan en la caja como un hecho histórico.`
+  return `${tokens}${expiration}${paid}`.trim()
 })
 
 async function confirm(reason: string): Promise<void> {

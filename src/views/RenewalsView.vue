@@ -42,14 +42,14 @@ const loadError = computed(() => renewalsQuery.error.value)
 const columns: TableColumn[] = [
   { key: 'status', label: 'Estado', width: '110px', card: 'start' },
   { key: 'account', label: 'Cliente y cuenta', card: 'primary' },
-  { key: 'recorded', label: 'Registrada', width: '145px', card: 'meta' },
-  { key: 'plan', label: 'Plan', width: '170px', hideBelow: 'lg' },
-  { key: 'agreed', label: 'Acordado', width: '110px', align: 'right', numeric: true, mobileLabel: 'Acordado' },
-  { key: 'paid', label: 'Cobrado', width: '110px', align: 'right', numeric: true, hideBelow: 'lg', mobileLabel: 'Cobrado' },
-  { key: 'pending', label: 'Pendiente', width: '110px', align: 'right', numeric: true, mobileLabel: 'Pendiente' },
-  { key: 'tokens', label: 'Tokens', width: '80px', align: 'right', numeric: true, hideBelow: 'xl' },
-  { key: 'margin', label: 'Margen', width: '110px', align: 'right', numeric: true, card: 'end', mobileLabel: 'Margen' },
-  { key: 'actions', label: 'Acciones', width: '110px', align: 'right', card: 'actions' },
+  { key: 'recorded', label: 'Registrada', width: '126px', card: 'meta' },
+  { key: 'plan', label: 'Plan', width: '156px', hideBelow: 'lg' },
+  { key: 'agreed', label: 'Acordado', width: '100px', align: 'right', numeric: true, mobileLabel: 'Acordado' },
+  { key: 'paid', label: 'Cobrado', width: '88px', align: 'right', numeric: true, hideBelow: 'lg', mobileLabel: 'Cobrado' },
+  { key: 'pending', label: 'Pendiente', width: '96px', align: 'right', numeric: true, mobileLabel: 'Pendiente' },
+  { key: 'tokens', label: 'Tokens', width: '76px', align: 'right', numeric: true, hideBelow: 'xl' },
+  { key: 'margin', label: 'Margen', width: '90px', align: 'right', numeric: true, card: 'end', mobileLabel: 'Margen' },
+  { key: 'actions', label: 'Acciones', width: '108px', align: 'right', card: 'actions' },
 ]
 
 const accountActions = ref<InstanceType<typeof AccountActionsHost> | null>(null)
@@ -159,7 +159,7 @@ function statusStyle(renewal: RenewalWithAccount['renewal']): Record<string, str
       </template>
 
       <template #cell-account="{ row }">
-        <span class="block truncate font-medium">
+        <span class="block font-medium">
           {{ row.account?.customerName ?? 'Cuenta no disponible' }}
         </span>
         <span class="block truncate font-mono text-xs text-content-muted">

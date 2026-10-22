@@ -18,7 +18,9 @@ const showPassword = ref(false)
 const fieldError = ref<string | null>(null)
 const submitting = ref(false)
 
-const expired = computed(() => route.query.expired === '1')
+const expired = computed(
+  () => route.query.expired === '1' || session.expiredNotice,
+)
 const canSubmit = computed(
   () => email.value.trim().length > 0 && password.value.length > 0 && !submitting.value,
 )

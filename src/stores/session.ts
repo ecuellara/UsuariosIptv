@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { AUTH_STORAGE_KEY, supabase } from '@/lib/supabase'
 import { queryClient } from '@/lib/query-client'
 import { AppError, isAuthError, toUserMessage } from '@/lib/errors'
 import { getProfile } from '@/services/profile'
@@ -23,6 +23,10 @@ export const useSessionStore = defineStore('session', () => {
   const loading = ref(false)
   const access = ref<AccessState>('unknown')
   const errorMessage = ref<string | null>(null)
+  /** `true` solo cuando la sesión se perdió de verdad (JWT rechazado). */
+  const expiredNotice = ref(false)
+  /** Fallo de transporte al leer `profiles`: la sesión sigue viva. */
+  const accessCheckFailed = ref(false)
 
   let initPromise: Promise<void> | null = null
 
@@ -39,26 +43,59 @@ export const useSessionStore = defineStore('session', () => {
       'Administrador',
   )
 
+  /* Supabase guarda la sesión en localStorage (`AUTH_STORAGE_KEY`). Sirve
+     para distinguir "nunca hubo sesión" de "había una y ya no se pudo
+     refrescar": en el segundo caso el JWT expiró y hay que avisarlo. */
+  function hadStoredSession(): boolean {
+    try {
+      return window.localStorage.getItem(AUTH_STORAGE_KEY) !== null
+    } catch {
+      return false
+    }
+  }
+
   async function loadProfile(): Promise<Profile | null> {
     if (!session.value) return null
     try {
       const found = await getProfile(session.value.user.id)
       profile.value = found
       access.value = found ? 'granted' : 'denied'
+      accessCheckFailed.value = false
       return found
     } catch (error) {
       if (isAuthError(error)) {
+        // El token ya no vale: la sesión no se conserva.
         session.value = null
         profile.value = null
         access.value = 'denied'
+        accessCheckFailed.value = false
+        expiredNotice.value = true
       } else {
+        /* Error de red / 5xx: la fila de `profiles` no se pudo comprobar.
+           No es "sin acceso" y la sesión se conserva para reintentar. El flag
+           no se limpia al iniciar otra comprobación: así la pantalla de
+           reintento no parpadea mientras hay consultas en vuelo. */
         access.value = 'unknown'
+        accessCheckFailed.value = true
         errorMessage.value = toUserMessage(
           error,
-          'No se pudo verificar tu acceso al panel.',
+          'No pudimos verificar tu acceso al panel.',
         )
       }
       return null
+    }
+  }
+
+  /** Reintenta la comprobación de acceso sin cerrar la sesión. */
+  async function retryAccess(): Promise<void> {
+    if (!session.value) return
+    loading.value = true
+    errorMessage.value = null
+    try {
+      const found = await loadProfile()
+      if (found) expiredNotice.value = false
+    } finally {
+      loading.value = false
     }
   }
 
@@ -83,6 +120,7 @@ export const useSessionStore = defineStore('session', () => {
 
   async function initialize(): Promise<void> {
     loading.value = true
+    const stored = hadStoredSession()
     try {
       const { data, error } = await supabase.auth.getSession()
       if (error) throw error
@@ -91,6 +129,8 @@ export const useSessionStore = defineStore('session', () => {
         await loadProfile()
       } else {
         access.value = 'denied'
+        /* Había una sesión guardada y ya no se puede refrescar: expiró. */
+        if (stored) expiredNotice.value = true
       }
     } catch (error) {
       errorMessage.value = toUserMessage(
@@ -113,6 +153,8 @@ export const useSessionStore = defineStore('session', () => {
   async function signIn(email: string, password: string): Promise<void> {
     loading.value = true
     errorMessage.value = null
+    expiredNotice.value = false
+    accessCheckFailed.value = false
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -128,7 +170,7 @@ export const useSessionStore = defineStore('session', () => {
       }
       session.value = data.session
       const found = await loadProfile()
-      if (!found) {
+      if (!found && !accessCheckFailed.value) {
         access.value = 'denied'
         errorMessage.value = null
       }
@@ -137,6 +179,7 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  /** Cierre voluntario: no es una expiración, así que no se avisa como tal. */
   async function signOut(): Promise<void> {
     try {
       await supabase.auth.signOut()
@@ -145,6 +188,8 @@ export const useSessionStore = defineStore('session', () => {
       profile.value = null
       access.value = 'denied'
       errorMessage.value = null
+      expiredNotice.value = false
+      accessCheckFailed.value = false
       queryClient.clear()
     }
   }
@@ -155,7 +200,9 @@ export const useSessionStore = defineStore('session', () => {
     session.value = null
     profile.value = null
     access.value = 'denied'
-    errorMessage.value = 'Tu sesión expiró. Vuelve a iniciar sesión.'
+    errorMessage.value = null
+    expiredNotice.value = true
+    accessCheckFailed.value = false
     queryClient.clear()
     void supabase.auth.signOut({ scope: 'local' })
   }
@@ -171,6 +218,8 @@ export const useSessionStore = defineStore('session', () => {
     initialized,
     loading,
     errorMessage,
+    expiredNotice,
+    accessCheckFailed,
     hasSession,
     isAuthenticated,
     userId,
@@ -180,6 +229,7 @@ export const useSessionStore = defineStore('session', () => {
     signIn,
     signOut,
     handleExpired,
+    retryAccess,
     clearError,
     refreshProfile: loadProfile,
   }

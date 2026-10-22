@@ -17,7 +17,7 @@ import type { RenewalSummary } from '@/types/domain'
    y margen vienen de `v_renewal_summary`; aquí solo se muestran.
    Revertir no borra pagos: queda auditado y el pago sigue en caja. */
 
-const props = defineProps<{ accountId: string }>()
+const props = defineProps<{ accountId: string; initialExpiresAt: string }>()
 const emit = defineEmits<{ changed: [] }>()
 
 const renewalsQuery = useQuery({
@@ -221,6 +221,8 @@ function onReversed(): void {
     <RenewalReverseDialog
       v-model:open="reverseOpen"
       :renewal="reverseTarget"
+      :renewals="renewals"
+      :initial-expires-at="initialExpiresAt"
       @reversed="onReversed"
     />
 

@@ -68,6 +68,7 @@ src/
     text.ts                búsqueda saneada, iniciales, wa.me
     whatsapp.ts            plantillas: variables, días restantes, normalización y wa.me
     mappers.ts             fila de vista/tabla → entidad de dominio (falla si falta un dato)
+    renewals.ts            fecha que restaura una reversión (misma regla que el SQL)
     query-client.ts        QueryClient + retry + handler de 401
     query-keys.ts          claves de caché centralizadas
   services/
@@ -163,17 +164,22 @@ está dentro de `outflow` y no se suma aparte. El detalle completo vive en `/fin
    la tarjeta móvil (`start`, `end`, `primary`, `meta`, `actions`). El CSS convierte la tabla a
    tarjetas a ≤640 px de contenedor: no se duplica el marcado.
 3. Acciones de una cuenta: `AccountActionsHost` (expone `openDetail`, `openCreate`, `openEdit`).
-   Evita abrir un sheet desde otro sheet: se cierra uno y se abre el siguiente.
+   No se apilan dos sheets: se cierra uno y se abre el siguiente. Un modal sí puede abrirse
+   encima del sheet (p. ej. `Comprar tokens` desde la renovación) sin cerrarlo.
 4. El DatePicker y el Select dentro de un modal/sheet se portalizan al propio diálogo para seguir
    siendo clickeables y accesibles (el layer modal bloquea el resto del body).
 5. Filtros: `AppSegmentedFilter` (`aria-pressed`) para rangos; `AppSelect` para estados.
-   No se usan tabs falsos sin `tabpanel`.
+   No se usan tabs falsos sin `tabpanel`. El filtro envuelve (`flex-wrap`), de modo que
+   las 5 opciones del dashboard siguen visibles y clicables a 1024–1440 sin scroll.
 6. Formularios nuevos: `useForm` + `toTypedSchema(zod)` + `defineField` (referencia:
    `CustomerFormModal.vue`). `values` de vee-validate es de solo lectura; no asignar directo.
 7. Colores, espaciado, radios y sombras solo con tokens/utilidades del theme. Prohibido `#hex`
    nuevo o `bg-primary/50` (los tokens son hex, no canales).
 8. Inputs siempre a 16 px; en `pointer: coarse` los controles llegan a 44 px por tokens.
 9. Copy en español, verbos + objeto en botones (`Registrar cobro`, no `Aceptar`).
+10. El dashboard usa dos columnas (tabla + panel lateral) solo desde `2xl` (1536 px). Por
+    debajo, `Vencimientos` ocupa todo el ancho y se mantiene como tabla: a 1280 ya no se
+    convierte en tarjetas. `DataTable` acepta `compact` para tablas densas (seguimiento).
 
 ### Rutas
 
@@ -208,9 +214,12 @@ lleva `soon`.
    `Registrar cobro` (`RecordPaymentModal`), que llama a `rpc_record_payment` con una clave nueva
    generada al abrir el modal. Tras revertir se invalida cuenta, historial, tokens y dashboard.
    La fila queda `Revertida`, el pago se conserva y el margen se muestra tachado como «revertido».
+   El aviso anticipa la misma fecha que el servidor (`lib/renewals.ts`): la última renovación
+   **no revertida** que queda, o `initial_expires_at`. Si no hubo cobro, no habla de pagos.
 7. **Tokens.** `TokensView` lee saldo, promedio y valor de inventario de `v_token_summary`. Las
    compras y los ajustes van por RPC con clave de idempotencia; el libro de `token_movements` es
-   de solo lectura y no ofrece editar ni borrar.
+   de solo lectura y no ofrece editar ni borrar. Con stock insuficiente, el sheet de renovación
+   ofrece `Comprar tokens` y abre el modal de compra **encima** del sheet, sin cerrarlo.
 8. **Errores de servidor.** Siempre `toUserMessage()`; el detalle técnico no se pinta. El sheet
    permanece abierto para corregir y reintentar con los mismos valores.
 
@@ -261,7 +270,9 @@ lleva `soon`.
    PostgREST; el cruce y el orden final, en el cliente. El orden usa `status_rank` de SQL y luego
    `next_followup_at` ascendente (sin programar va al final). Las cuentas archivadas no entran.
    La bandeja tiene un tope de 1000 filas y avisa si el total lo supera: no oculta datos en
-   silencio.
+   silencio. La tabla usa padding compacto y seis columnas: el teléfono vive dentro de
+   «Cliente y cuenta» y último contacto + próxima acción comparten una celda de dos líneas; así
+   ninguna columna esencial queda bajo la columna fija de acciones a 1024–1440 con `scrollLeft=0`.
 2. **La app no envía nada.** `FollowupComposer` elige una plantilla activa, muestra el texto
    renderizado y abre `wa.me` en otra pestaña. Al abrir se registra `ENLACE_ABIERTO` con
    `rendered_body` y `wa_url`; después el admin confirma `MENSAJE_ENVIADO` (estado `CONTACTADO`).
@@ -297,6 +308,7 @@ lleva `soon`.
 | 1 | Pruebas E2E en el repo | La verificación de este slice se hizo con Playwright sobre Chrome local, fuera del repo | `testing-e2e` |
 | 2 | Bandeja con cruce en cliente | Los filtros van a PostgREST, pero el cruce con `renewal_followups` y el orden por próxima acción se resuelven en memoria (tope 1000). Con más volumen conviene una vista SQL | `db-architect` / `frontend-web` |
 | 3 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
+| 4 | `/renovaciones` a ≤1280 | La tabla conserva scroll horizontal y `Margen` puede quedar bajo la columna fija; a 1440 ya cabe completa. El dato sigue en la ficha de la cuenta | `frontend-web` |
 
 ### Desviaciones conscientes del documento de diseño
 
@@ -323,6 +335,15 @@ una respuesta. Quedaron 6 `contact_logs` (3 por cuenta) y los seguimientos en
 restauró por la UI; su texto final es el del seed y el `rendered_body` de los logs previos no
 cambió. No se ejecutó `db reset` ni se tocó `supabase/**`.
 
+En la verificación de QA (hallazgos A-01/M-01…B-08) se crearon tres cuentas de prueba con sus
+clientes (`qa_a01_*`, `qa_a01b_*` y `qa_sheet_*`) para reproducir la reversión con dos
+renovaciones y probar los diálogos. Las tres cuentas y sus clientes quedaron **archivados**; las
+renovaciones creadas están **revertidas** (no se borró ninguna fila). Durante la prueba de foco
+del formulario se registró por error una renovación con cobro de S/ 15.00 en la cuenta de prueba
+`ui_slice2a_565883`; se **revirtió por RPC** con motivo y la cuenta volvió a su vencimiento
+inicial. Ese cobro sigue en caja, como manda el modelo (la reversión no devuelve dinero). No se
+ejecutó `db reset` ni se tocó `supabase/**`.
+
 ---
 
 ## 6. Verificación ejecutada
@@ -330,7 +351,7 @@ cambió. No se ejecutó `db reset` ni se tocó `supabase/**`.
 ```bash
 npm run typecheck   # sin salida = sin errores
 npm run lint        # sin salida = sin errores
-npm run test        # 54 pruebas en 6 archivos
+npm run test        # 60 pruebas en 7 archivos
 npm run build       # dist/ generado (incluye robots.txt)
 ```
 
@@ -359,8 +380,36 @@ intercepta y se comprueba la URL generada):
 - Editar `RECORDATORIO` y comprobar por SQL que el `rendered_body` anterior conserva su MD5 y
   longitud (133 caracteres). Intentar `{password}` → rechazo con mensaje y sin cambio en la DB;
   después se restauró el texto original.
-- Bandeja a 375/768/1024/1440: sin desborde del documento; a 1440 la tabla cabe
-  (`scrollWidth` 1122 / `clientWidth` 1122), a 768/1024 la tabla se desplaza dentro de su
-  contenedor con acciones sticky. Consola sin errores.
+- Bandeja a 375/768/1024/1440: sin desborde del documento; la tabla cabe en su contenedor
+  (`scrollWidth = clientWidth`) y conserva las acciones visibles. (Tras los hallazgos de QA la
+  bandeja usa 6 columnas compactas; ver la verificación de QA al final.) Consola sin errores.
 - `Renovaciones`: el badge «Cobro sin renovación» mide 22 px de alto y las filas bajan a ~65 px
   (antes ~115 px), con el tooltip completo intacto.
+
+Verificación de los hallazgos de QA (Playwright/Chrome + Supabase local, `axe-core` inyectado):
+
+- **A-01**: R1 (26 oct → 26 nov) y R2 (26 nov → 26 dic) sin cobro. Revertir R1 muestra
+  «volverá a 26 dic 2026 · 12:00» y la cuenta queda en `2026-12-26T17:00Z`; revertir R2 muestra
+  «volverá a 26 oct 2026 · 12:00» y la cuenta vuelve a `initial_expires_at`
+  (`2026-10-26T17:00Z`). La frase sobre pagos solo aparece con `amountPaid > 0`.
+- **M-01/B-05**: filtro del dashboard con `scrollWidth = clientWidth` y las 5 opciones visibles a
+  1024 (2 filas), 1280, 1366, 1440 y 1536 (1 fila). `Vencimientos` es tabla a 1024–1536; el
+  panel lateral pasa a `2xl`.
+- **M-02**: seguimiento a 1024 (`722/722`, `scrollLeft=0`) y 1440 (`1122/1122`), sin columnas
+  bajo la fija; teléfono y contacto/próxima acción fusionados.
+- **B-06**: renovaciones a 1440 `1122/1122`, `Margen` y `Tokens` visibles con `coveredPx = 0`.
+- **M-03**: con `GET /rest/v1/profiles` bloqueado se muestra «No pudimos verificar tu acceso»,
+  la sesión sigue en `localStorage` y `Reintentar` (tras desbloquear) vuelve al dashboard.
+- **M-04/M-05/B-04/B-08**: axe sin violaciones en `/`, `/cuentas`, `/seguimiento`,
+  `/renovaciones`, `/finanzas` y dentro del sheet de renovación (cero `label-content-name-mismatch`,
+  `aria-allowed-attr` y `definition-list`). `AppSheet`/`AppModal` llevan `aria-modal="true"` y el
+  foco inicial va al `<h2>` del diálogo, no a «Cerrar panel».
+- **B-01/B-02**: logout voluntario → `/login?redirect=/` sin aviso; recarga con JWT expirado y
+  refresh inválido → `/login?redirect=/cuentas&expired=1` con «Tu sesión expiró».
+- **B-03**: importe vacío → el foco queda en `INPUT` (`inputmode="decimal"`, «Importe cobrado») y
+  el `role="alert"` del campo es visible.
+- **B-07/C-01/C-02**: con stock 0 la alerta abre `Comprar tokens` sobre el sheet (z 500 sobre 450)
+  sin cerrarlo; el footer del sheet baja de 205 a 123 px con altura 600; la tabla de planes a 1024
+  usa dos columnas por tarjeta (385 px de alto, antes 529).
+- 375/768/1024/1440: `document.scrollWidth = clientWidth` en las seis rutas; consola sin errores.
+

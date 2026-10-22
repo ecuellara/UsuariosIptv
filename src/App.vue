@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import AppShell from '@/components/layout/AppShell.vue'
+import AppButton from '@/components/ui/AppButton.vue'
 import { useSessionStore } from '@/stores/session'
 
 /* Superficie:
@@ -21,14 +22,23 @@ const ready = computed(
 const isAuthRoute = computed(
   () => route.name === 'login' || route.name === 'forbidden',
 )
+/* La sesión existe, pero `profiles` no se pudo leer por red/5xx. */
+const accessUnknown = computed(
+  () => session.hasSession && session.accessCheckFailed,
+)
 
 watch(
   () => session.hasSession,
   (hasSession) => {
     if (!hasSession && !route.meta.public) {
+      /* Solo se anuncia "Tu sesión expiró" cuando de verdad expiró; un cierre
+         voluntario vuelve al login sin ese aviso. */
       void router.replace({
         name: 'login',
-        query: { expired: '1', redirect: route.fullPath },
+        query: {
+          ...(session.expiredNotice ? { expired: '1' } : {}),
+          redirect: route.fullPath,
+        },
       })
     }
   },
@@ -37,6 +47,34 @@ watch(
 
 <template>
   <div v-if="!ready" class="min-h-dvh bg-bg" aria-busy="true" />
+
+  <div
+    v-else-if="accessUnknown"
+    class="flex min-h-dvh items-center justify-center px-4"
+  >
+    <div
+      class="w-full max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm"
+    >
+      <h1 class="text-2xl font-semibold text-content">
+        No pudimos verificar tu acceso
+      </h1>
+      <p class="mt-2 text-base text-content-muted">
+        Tu sesión sigue abierta, pero no pudimos leer tu perfil. Revisa la
+        conexión y vuelve a intentarlo.
+      </p>
+      <p v-if="session.errorMessage" class="mt-2 text-sm text-danger-text" role="alert">
+        {{ session.errorMessage }}
+      </p>
+      <div class="mt-6 flex flex-col gap-2">
+        <AppButton variant="primary" block :loading="session.loading" @click="session.retryAccess()">
+          Reintentar
+        </AppButton>
+        <AppButton variant="secondary" block @click="session.signOut()">
+          Cerrar sesión
+        </AppButton>
+      </div>
+    </div>
+  </div>
 
   <RouterView v-else v-slot="{ Component }">
     <AppShell v-if="!isAuthRoute">

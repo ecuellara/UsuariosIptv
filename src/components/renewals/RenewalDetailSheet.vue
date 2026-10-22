@@ -16,6 +16,7 @@ import {
 } from '@/lib/format'
 import { queryKeys } from '@/lib/query-keys'
 import { listPaymentsByRenewal } from '@/services/payments'
+import { listRenewalsByAccount } from '@/services/renewals'
 import type { Account, RenewalSummary } from '@/types/domain'
 
 /* Detalle de una renovación desde el listado. Reutiliza el mismo
@@ -47,6 +48,20 @@ const paymentsQuery = useQuery({
 
 const payments = computed(() => paymentsQuery.data.value ?? [])
 const paymentTotal = computed(() => props.renewal?.amountPaid ?? 0)
+
+/* El diálogo de reversión necesita el historial completo de la cuenta para
+   anticipar la fecha que restaurará el servidor (no basta el previous). */
+const accountRenewalsQuery = useQuery({
+  queryKey: computed(() =>
+    queryKeys.renewals.byAccount(props.renewal?.accountId ?? 'ninguna'),
+  ),
+  queryFn: () => listRenewalsByAccount(props.renewal?.accountId ?? ''),
+  enabled: computed(() => open.value && Boolean(props.renewal?.accountId)),
+})
+
+const accountRenewals = computed(
+  () => accountRenewalsQuery.data.value ?? null,
+)
 
 const paidWithoutRenewal = computed(
   () => Boolean(props.renewal?.isReversed && props.renewal.amountPaid > 0),
@@ -315,6 +330,8 @@ function onReversed(): void {
     <RenewalReverseDialog
       v-model:open="reverseOpen"
       :renewal="renewal"
+      :renewals="accountRenewals"
+      :initial-expires-at="account?.initialExpiresAt ?? null"
       @reversed="onReversed"
     />
   </AppSheet>

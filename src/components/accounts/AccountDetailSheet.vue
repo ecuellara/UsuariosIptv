@@ -155,6 +155,7 @@ async function copyUsername(): Promise<void> {
       <section class="panel p-4">
         <AccountRenewalHistory
           :account-id="account.id"
+          :initial-expires-at="account.initialExpiresAt"
           @changed="accountQuery.refetch()"
         />
       </section>
