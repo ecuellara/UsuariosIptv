@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useForm } from 'vee-validate'
+import { toTypedSchema } from '@vee-validate/zod'
+import { z } from 'zod'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCombobox from '@/components/ui/AppCombobox.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
@@ -36,25 +39,82 @@ const isEdit = computed(() => Boolean(props.account))
 const saving = ref(false)
 const formError = ref<string | null>(null)
 
-const form = reactive({
-  customerId: null as string | null,
-  externalUsername: '',
-  reference: '',
-  purchasedAt: nowIso() as string | null,
-  expiresAt: null as string | null,
-  notes: '',
+/* Mismo patrón que CustomerFormModal: vee-validate + zod, mensajes en español
+   y errores por campo. La regla de fecha solo aplica al alta, igual que antes. */
+const baseSchema = z.object({
+  customerId: z.string().min(1, 'Elige el cliente.'),
+  externalUsername: z
+    .string()
+    .trim()
+    .min(1, 'Escribe el usuario del panel del proveedor.')
+    .max(64, 'Máximo 64 caracteres.'),
+  reference: z.string().max(120, 'Máximo 120 caracteres.'),
+  purchasedAt: z.string().min(1, 'Elige la fecha de compra.'),
+  expiresAt: z.string(),
+  notes: z.string().max(500, 'Máximo 500 caracteres.'),
 })
 
-const errors = reactive<{
-  customerId: string | null
-  externalUsername: string | null
-  purchasedAt: string | null
-  expiresAt: string | null
-}>({
-  customerId: null,
-  externalUsername: null,
-  purchasedAt: null,
-  expiresAt: null,
+const schema = computed(() =>
+  toTypedSchema(
+    isEdit.value
+      ? baseSchema
+      : baseSchema.superRefine((data, ctx) => {
+          if (!data.expiresAt) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['expiresAt'],
+              message: 'Elige el vencimiento.',
+            })
+          } else if (data.purchasedAt && data.expiresAt <= data.purchasedAt) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['expiresAt'],
+              message: 'El vencimiento debe ser posterior a la compra.',
+            })
+          }
+        }),
+  ),
+)
+
+interface AccountFormValues {
+  customerId: string
+  externalUsername: string
+  reference: string
+  purchasedAt: string
+  expiresAt: string
+  notes: string
+}
+
+const { errors, values, resetForm, validate, defineField, setFieldValue } =
+  useForm<AccountFormValues>({
+    validationSchema: schema,
+    initialValues: {
+      customerId: '',
+      externalUsername: '',
+      reference: '',
+      purchasedAt: '',
+      expiresAt: '',
+      notes: '',
+    },
+  })
+
+const [externalUsername] = defineField('externalUsername')
+const [reference] = defineField('reference')
+const [notes] = defineField('notes')
+
+const customerIdModel = computed<string | null>({
+  get: () => values.customerId || null,
+  set: (value) => setFieldValue('customerId', value ?? ''),
+})
+
+const purchasedAtModel = computed<string | null>({
+  get: () => values.purchasedAt || null,
+  set: (value) => setFieldValue('purchasedAt', value ?? ''),
+})
+
+const expiresAtModel = computed<string | null>({
+  get: () => values.expiresAt || null,
+  set: (value) => setFieldValue('expiresAt', value ?? ''),
 })
 
 /* Búsqueda remota de clientes (debounce 250 ms, mínimo 2 caracteres como
@@ -82,88 +142,71 @@ const comboboxOptions = computed(() =>
 
 const customersLoading = computed(() => customerOptions.isFetching.value)
 
-watch(open, (value) => {
+watch(open, async (value) => {
   if (!value) return
   formError.value = null
-  errors.customerId = null
-  errors.externalUsername = null
-  errors.purchasedAt = null
-  errors.expiresAt = null
   customerSearch.value = ''
 
-  if (props.account) {
-    form.customerId = props.account.customerId
-    form.externalUsername = props.account.externalUsername
-    form.reference = props.account.reference ?? ''
-    form.purchasedAt = props.account.purchasedAt
-    form.expiresAt = props.account.expiresAt
-    form.notes = props.account.notes ?? ''
-  } else {
-    form.customerId = props.customerId ?? ''
-    form.externalUsername = ''
-    form.reference = ''
-    form.purchasedAt = nowIso()
-    form.expiresAt = null
-    form.notes = ''
+  resetForm({
+    values: {
+      customerId: props.account?.customerId ?? props.customerId ?? '',
+      externalUsername: props.account?.externalUsername ?? '',
+      reference: props.account?.reference ?? '',
+      purchasedAt: props.account?.purchasedAt ?? nowIso(),
+      expiresAt: props.account?.expiresAt ?? '',
+      notes: props.account?.notes ?? '',
+    },
+  })
+
+  await nextTick()
+  if (!isEdit.value) {
+    document
+      .querySelector<HTMLElement>('[role="dialog"] input[role="combobox"]')
+      ?.focus()
   }
 })
 
-function validate(): boolean {
-  errors.customerId = form.customerId ? null : 'Elige el cliente.'
-  errors.externalUsername =
-    form.externalUsername.trim().length === 0
-      ? 'Escribe el usuario del panel del proveedor.'
-      : form.externalUsername.trim().length > 64
-        ? 'Máximo 64 caracteres.'
-        : null
-  errors.purchasedAt = form.purchasedAt ? null : 'Elige la fecha de compra.'
-  if (!isEdit.value) {
-    if (!form.expiresAt) {
-      errors.expiresAt = 'Elige el vencimiento.'
-    } else if (form.purchasedAt && form.expiresAt <= form.purchasedAt) {
-      errors.expiresAt = 'El vencimiento debe ser posterior a la compra.'
-    } else {
-      errors.expiresAt = null
-    }
-  }
-  return (
-    !errors.customerId &&
-    !errors.externalUsername &&
-    !errors.purchasedAt &&
-    !errors.expiresAt
-  )
-}
-
 async function save(): Promise<void> {
   formError.value = null
-  if (!validate()) return
+  if (saving.value) return
+
+  const result = await validate()
+  if (!result.valid) {
+    await nextTick()
+    document
+      .querySelector<HTMLElement>('[role="dialog"] [aria-invalid="true"]')
+      ?.focus()
+    return
+  }
+
   if (!session.userId) {
     formError.value = 'Tu sesión no está disponible. Vuelve a iniciar sesión.'
     return
   }
+
   saving.value = true
   try {
-    const notes = form.notes.trim() ? form.notes.trim() : null
-    const reference = form.reference.trim() ? form.reference.trim() : null
+    const notesValue = values.notes.trim() ? values.notes.trim() : null
+    const referenceValue = values.reference.trim() ? values.reference.trim() : null
     let id = props.account?.id ?? ''
 
     if (props.account) {
       await updateAccount(props.account.id, {
-        external_username: form.externalUsername.trim(),
-        reference,
-        purchased_at: form.purchasedAt ?? props.account.purchasedAt,
-        notes,
+        external_username: values.externalUsername.trim(),
+        reference: referenceValue,
+        purchased_at: values.purchasedAt || props.account.purchasedAt,
+        notes: notesValue,
       })
     } else {
-      if (!form.expiresAt || !form.purchasedAt || !form.customerId) return
+      if (!values.expiresAt || !values.purchasedAt || !values.customerId) return
       id = await createAccount(
         {
-          customerId: form.customerId,
-          externalUsername: form.externalUsername.trim(),
-          reference,
-          purchasedAt: form.purchasedAt,
-          expiresAt: form.expiresAt,
-          notes,
+          customerId: values.customerId,
+          externalUsername: values.externalUsername.trim(),
+          reference: referenceValue,
+          purchasedAt: values.purchasedAt,
+          expiresAt: values.expiresAt,
+          notes: notesValue,
         },
         session.userId,
       )
@@ -201,7 +244,7 @@ async function save(): Promise<void> {
 
       <AppCombobox
         v-if="!isEdit"
-        v-model="form.customerId"
+        v-model="customerIdModel"
         :options="comboboxOptions"
         label="Cliente"
         placeholder="Buscar por nombre o teléfono…"
@@ -218,7 +261,7 @@ async function save(): Promise<void> {
       </div>
 
       <AppInput
-        v-model="form.externalUsername"
+        v-model="externalUsername"
         label="Usuario externo"
         hint="Tal como figura en el panel del proveedor. Único entre cuentas activas."
         :required="true"
@@ -229,7 +272,7 @@ async function save(): Promise<void> {
       />
 
       <AppInput
-        v-model="form.reference"
+        v-model="reference"
         label="Referencia"
         hint="Dónde está la contraseña: “gestor personal”, “cuaderno”, etc."
         :maxlength="120"
@@ -237,7 +280,7 @@ async function save(): Promise<void> {
       />
 
       <AppDatePicker
-        v-model="form.purchasedAt"
+        v-model="purchasedAtModel"
         label="Comprada el"
         :with-time="true"
         :required="true"
@@ -247,7 +290,7 @@ async function save(): Promise<void> {
 
       <AppDatePicker
         v-if="!isEdit"
-        v-model="form.expiresAt"
+        v-model="expiresAtModel"
         label="Vence el"
         :with-time="true"
         :required="true"
@@ -264,7 +307,7 @@ async function save(): Promise<void> {
       </div>
 
       <AppTextarea
-        v-model="form.notes"
+        v-model="notes"
         label="Notas"
         :maxlength="500"
         :rows="3"

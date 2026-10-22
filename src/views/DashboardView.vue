@@ -201,6 +201,10 @@ function openDetail(account: Account): void {
   accountActions.value?.openDetail(account)
 }
 
+function openRenewal(account?: Account): void {
+  accountActions.value?.openRenewal(account ? { account } : {})
+}
+
 function goToAccounts(): void {
   void router.push({ name: 'accounts' })
 }
@@ -229,10 +233,10 @@ function goToAccounts(): void {
           <template #icon><AppIcon name="user-plus" :size="18" /></template>
           Nuevo cliente
         </AppButton>
-        <RouterLink :to="{ name: 'renewals' }" class="btn" data-variant="primary">
-          <AppIcon name="refresh" :size="18" />
+        <AppButton variant="primary" @click="openRenewal()">
+          <template #icon><AppIcon name="refresh" :size="18" /></template>
           Registrar renovación
-        </RouterLink>
+        </AppButton>
       </div>
     </header>
 
@@ -426,15 +430,16 @@ function goToAccounts(): void {
               >
                 <AppIcon name="whatsapp" :size="16" />
               </a>
-              <RouterLink
-                :to="{ name: 'renewals' }"
+              <button
+                type="button"
                 class="btn"
                 data-variant="secondary"
                 data-size="sm"
                 :aria-label="`Registrar renovación de ${row.customerName}`"
+                @click="openRenewal(row)"
               >
                 Renovar
-              </RouterLink>
+              </button>
             </div>
           </template>
 
@@ -456,10 +461,16 @@ function goToAccounts(): void {
         <section class="panel p-4">
           <h2 class="section-label mb-3">Acciones rápidas</h2>
           <div class="flex flex-col gap-2">
-            <RouterLink :to="{ name: 'renewals' }" class="btn" data-variant="primary" data-block="true">
+            <button
+              type="button"
+              class="btn"
+              data-variant="primary"
+              data-block="true"
+              @click="openRenewal()"
+            >
               <AppIcon name="refresh" :size="18" />
               Registrar renovación
-            </RouterLink>
+            </button>
             <div class="grid grid-cols-2 gap-2">
               <RouterLink :to="{ name: 'tokens' }" class="btn" data-variant="secondary">
                 <AppIcon name="coins" :size="16" />

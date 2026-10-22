@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   formatMoney,
   formatPhone,
+  formatSignedInteger,
   formatTokens,
+  movementTypeLabel,
   normalizePhone,
+  paymentMethodLabel,
   relativeDays,
   statusLabel,
   toNumber,
@@ -69,6 +72,19 @@ describe('presentación de datos', () => {
   it('concuerda singular y plural de tokens', () => {
     expect(formatTokens(1)).toBe('1 token')
     expect(formatTokens(14)).toBe('14 tokens')
+  })
+
+  it('firma las cantidades del libro de tokens', () => {
+    expect(formatSignedInteger(10)).toBe('+10')
+    expect(formatSignedInteger(-3)).toBe('−3')
+    expect(formatSignedInteger(null)).toBe('—')
+  })
+
+  it('traduce métodos de pago y tipos de movimiento', () => {
+    expect(paymentMethodLabel('YAPE')).toBe('Yape')
+    expect(paymentMethodLabel('TRANSFERENCIA')).toBe('Transferencia')
+    expect(movementTypeLabel('REVERSION')).toBe('Reversión')
+    expect(movementTypeLabel(null)).toBe('—')
   })
 
   it('convierte numeric de Postgres sin romper el valor', () => {

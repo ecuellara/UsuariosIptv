@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import AccountRenewalHistory from '@/components/accounts/AccountRenewalHistory.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -20,6 +21,7 @@ const props = defineProps<{ accountId: string | null }>()
 
 const emit = defineEmits<{
   edit: []
+  renew: []
   'correct-expiration': []
   archive: []
   verify: []
@@ -146,16 +148,19 @@ async function copyUsername(): Promise<void> {
       </section>
 
       <section class="panel p-4">
-        <h2 class="section-label mb-2">Historial</h2>
-        <p class="text-sm text-content-muted">
-          El historial de renovaciones, los tokens consumidos y el contacto de esta cuenta se
-          habilitan en la siguiente entrega.
-        </p>
+        <AccountRenewalHistory
+          :account-id="account.id"
+          @changed="accountQuery.refetch()"
+        />
       </section>
 
       <section aria-labelledby="cuenta-acciones">
         <h2 id="cuenta-acciones" class="section-label mb-2">Acciones</h2>
         <div class="grid gap-2 sm:grid-cols-2">
+          <AppButton variant="primary" class="sm:col-span-2" @click="emit('renew')">
+            <template #icon><AppIcon name="refresh" :size="18" /></template>
+            Registrar renovación
+          </AppButton>
           <AppButton variant="secondary" @click="emit('edit')">
             <template #icon><AppIcon name="pencil" :size="18" /></template>
             Editar datos

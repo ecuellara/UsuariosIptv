@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/vue-query'
 import AccountDetailSheet from '@/components/accounts/AccountDetailSheet.vue'
 import AccountFormSheet from '@/components/accounts/AccountFormSheet.vue'
 import CorrectExpirationModal from '@/components/accounts/CorrectExpirationModal.vue'
+import RenewalSheet from '@/components/renewals/RenewalSheet.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { toUserMessage } from '@/lib/errors'
@@ -26,6 +27,10 @@ const formOpen = ref(false)
 const formAccount = ref<Account | null>(null)
 const formCustomerId = ref<string | null>(null)
 const formCustomerName = ref<string | null>(null)
+const renewalOpen = ref(false)
+const renewalAccount = ref<Account | null>(null)
+const renewalCustomerId = ref<string | null>(null)
+const renewalCustomerName = ref<string | null>(null)
 const correctingOpen = ref(false)
 const confirmOpen = ref(false)
 const confirmLoading = ref(false)
@@ -56,6 +61,37 @@ function openEdit(account: Account): void {
   formAccount.value = account
   detailOpen.value = false
   formOpen.value = true
+}
+
+interface RenewalTarget {
+  account?: Account | null
+  customerId?: string | null
+  customerName?: string | null
+}
+
+/**
+ * Abre el sheet de renovación. Si hay una ficha abierta, se cierra primero:
+ * nunca se apilan dos sheets (README §4).
+ */
+function openRenewal(target: RenewalTarget = {}): void {
+  renewalAccount.value = target.account ?? null
+  renewalCustomerId.value =
+    target.customerId ?? target.account?.customerId ?? null
+  renewalCustomerName.value =
+    target.customerName ?? target.account?.customerName ?? null
+  detailOpen.value = false
+  renewalOpen.value = true
+}
+
+function onDetailRenew(): void {
+  if (selected.value) openRenewal({ account: selected.value })
+}
+
+async function onRenewalRegistered(): Promise<void> {
+  await refresh()
+  await queryClient.invalidateQueries({ queryKey: queryKeys.renewals.all })
+  await queryClient.invalidateQueries({ queryKey: queryKeys.tokens.all })
+  emit('changed')
 }
 
 function onDetailEdit(): void {
@@ -114,7 +150,7 @@ async function confirmArchive(): Promise<void> {
   }
 }
 
-defineExpose({ openDetail, openCreate, openEdit })
+defineExpose({ openDetail, openCreate, openEdit, openRenewal })
 </script>
 
 <template>
@@ -122,9 +158,18 @@ defineExpose({ openDetail, openCreate, openEdit })
     v-model:open="detailOpen"
     :account-id="selectedId"
     @edit="onDetailEdit"
+    @renew="onDetailRenew"
     @correct-expiration="onDetailCorrect"
     @archive="onDetailArchive"
     @verify="onDetailVerify"
+  />
+
+  <RenewalSheet
+    v-model:open="renewalOpen"
+    :account="renewalAccount"
+    :customer-id="renewalCustomerId"
+    :customer-name="renewalCustomerName"
+    @registered="onRenewalRegistered"
   />
 
   <AccountFormSheet

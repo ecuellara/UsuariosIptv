@@ -7,7 +7,7 @@ import type { TablesUpdate } from '@/types/domain'
 /* Lecturas de cuentas: SIEMPRE desde `v_account_status` (ADR-006).
    El estado nunca se recalcula en el cliente. */
 
-const ACCOUNT_COLUMNS =
+export const ACCOUNT_COLUMNS =
   'id,customer_id,customer_name,phone,external_username,reference,purchased_at,expires_at,initial_expires_at,last_verified_at,notes,archived_at,created_by,created_at,updated_at,expires_on,days_left,status,status_rank,followup_status,is_stale_verification'
 
 export const ACCOUNT_PAGE_SIZE = 25

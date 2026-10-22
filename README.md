@@ -91,11 +91,14 @@ src/
     layout/                AppShell, AppSidebar, AppTopbar, AppMobileMenu
     customers/             CustomerFormModal (vee-validate + zod)
     accounts/              AccountFormSheet, AccountDetailSheet, CorrectExpirationModal,
-                           AccountActionsHost (estado y mutaciones de una cuenta)
+                           AccountRenewalHistory, AccountActionsHost (estado y mutaciones)
+    renewals/              RenewalSheet (flujo crítico), RecordPaymentModal
+    tokens/                PurchaseTokensModal, AdjustTokensModal
     settings/              PlanRowEditor
   views/
     LoginView, DashboardView, CustomersView, CustomerDetailView, AccountsView,
-    SettingsView, ModulePendingView (slice 2), ForbiddenView, NotFoundView
+    RenewalsView, TokensView, SettingsView, ModulePendingView (seguimiento/finanzas),
+    ForbiddenView, NotFoundView
   lib/*.test.ts            pruebas unitarias
 ```
 
@@ -121,9 +124,10 @@ src/
 ### Nota de arquitectura: totales de caja
 
 PostgREST de este proyecto tiene las funciones de agregación deshabilitadas (`PGRST123`) y el
-modelo no incluye una vista/RPC de resumen de caja. Sumar en JavaScript está prohibido, así que
-el dashboard **lista** los movimientos del mes (cada importe viene de SQL) pero **no muestra un
-total**. Hace falta `v_cash_summary` o `rpc_cash_summary` (ver §5).
+modelo ya incluye `v_cash_monthly` (ingresos, egresos y neto por mes). El dashboard del slice 1
+sigue **listando** los movimientos del mes porque el total se mostrará en Finanzas (2B); el
+navegador nunca suma importes. `token_purchases` de la vista es informativo: ya está dentro de
+`outflow` y no se suma aparte.
 
 ---
 
@@ -162,10 +166,43 @@ total**. Hace falta `v_cash_summary` o `rpc_cash_summary` (ver §5).
 
 ### Rutas
 
-`/renovaciones`, `/tokens`, `/finanzas` y `/seguimiento` ya existen con `ModulePendingView` y
-`meta.pending`. Al implementarlas, se reemplaza el componente y se quita `pending` del meta.
-La navegación (`router/navigation.ts`) ya las incluye con la etiqueta «Pronto»; al activarlas,
-quitar `soon: true`.
+`/renovaciones` y `/tokens` ya están implementadas. `/seguimiento` y `/finanzas` siguen con
+`ModulePendingView` y `meta.pending`; al implementarlas, se reemplaza el componente y se quita
+`pending` del meta. La navegación (`router/navigation.ts`) ya las incluye con la etiqueta «Pronto»;
+al activarlas, quitar `soon: true`.
+
+### Renovaciones y tokens (slice 2A)
+
+1. **Un solo sheet de renovación.** `RenewalSheet` se abre con
+   `AccountActionsHost.openRenewal({ account?, customerId?, customerName? })` desde dashboard,
+   listado de cuentas, ficha de cuenta y ficha de cliente. Si había una ficha abierta, se cierra
+   antes: no se apilan sheets. El host concentra el refresco de `accounts`, `dashboard`,
+   `renewals` y `tokens`.
+2. **Idempotencia por formulario.** Cada operación genera su clave **al abrir**, no por clic:
+   `renewalKey` y `paymentKey` en el sheet; `purchaseKey`/`adjustKey` en los modales de tokens.
+   Un reintento manda la misma clave. Si se cierra y se vuelve a abrir, es una operación nueva y
+   por tanto una clave nueva.
+3. **Éxito parcial.** Si `rpc_register_renewal` responde bien y `rpc_record_payment` falla, el
+   sheet queda en estado reducido con «Renovación registrada. El cobro no se guardó.». El botón
+   `Reintentar cobro` llama **solo** a `rpc_record_payment` con la misma clave del cobro. Nunca se
+   reenvía la renovación.
+4. **Fecha sugerida.** Se calcula con `rpc('add_months')` cada vez que cambian plan, tipo de
+   operación, fecha efectiva o vencimiento actual. Una secuencia descarta respuestas viejas.
+   `p_expiration_edited` se decide comparando instantes (no texto), y el campo se envía siempre.
+5. **Montos estimados.** El footer multiplica `tokens_used × v_token_summary.avg_unit_cost` solo
+   para mostrar, con la etiqueta «estimado». El costo real queda congelado por el servidor y se
+   lee de `v_renewal_summary.token_cost` / `gross_margin`. Si la vista de tokens no devuelve fila,
+   se muestra «no disponible», nunca 0.
+6. **Reversión y cobro posterior.** `AccountRenewalHistory` lista `v_renewal_summary` y abre un
+   `ConfirmDialog` con motivo obligatorio. Si `amount_pending > 0`, la misma tarjeta ofrece
+   `Registrar cobro` (`RecordPaymentModal`), que llama a `rpc_record_payment` con una clave nueva
+   generada al abrir el modal. Tras revertir se invalida cuenta, historial, tokens y dashboard.
+   La fila queda `Revertida`, el pago se conserva y el margen se muestra tachado como «revertido».
+7. **Tokens.** `TokensView` lee saldo, promedio y valor de inventario de `v_token_summary`. Las
+   compras y los ajustes van por RPC con clave de idempotencia; el libro de `token_movements` es
+   de solo lectura y no ofrece editar ni borrar.
+8. **Errores de servidor.** Siempre `toUserMessage()`; el detalle técnico no se pinta. El sheet
+   permanece abierto para corregir y reintentar con los mismos valores.
 
 ---
 
@@ -173,9 +210,9 @@ quitar `soon: true`.
 
 | # | Pendiente | Impacto | Quién |
 |---|---|---|---|
-| 1 | Totales de caja del mes | El dashboard no muestra neto; solo movimientos | `db-architect` (vista/RPC de resumen) + `frontend-web` |
-| 2 | Agregados por cliente (cuentas activas, próximo vencimiento, última renovación) | El listado de clientes no muestra esas columnas | `db-architect` (vista) |
-| 3 | Módulos del slice 2 | Rutas visibles con estado «en preparación» | `frontend-web` (siguiente turno) |
+| 1 | Totales de caja en el dashboard | El rail sigue listando movimientos; `v_cash_monthly` ya existe y se usará en Finanzas (2B) | `frontend-web` (2B) |
+| 2 | Agregados por cliente en el listado | `v_customer_summary` ya existe; el listado aún no muestra activas/próximo vencimiento | `frontend-web` (2B) |
+| 3 | Seguimiento y Finanzas | Siguen en `ModulePendingView`; Renovaciones y Tokens ya están implementados | `frontend-web` (2B) |
 | 4 | Pruebas E2E en el repo | La verificación visual se hizo con Playwright sobre Chrome local, fuera del repo | `testing-e2e` |
 | 5 | Exportación CSV y plantillas de WhatsApp | No están en el alcance del slice 1 | slice 2 |
 | 6 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
@@ -200,10 +237,11 @@ Durante la verificación se crearon clientes y cuentas de prueba **desde la UI y
 ```bash
 npm run typecheck   # sin salida = sin errores
 npm run lint        # sin salida = sin errores
-npm run test        # 23 pruebas en 3 archivos
-npm run build       # dist/ generado
+npm run test        # 25 pruebas en 3 archivos
+npm run build       # dist/ generado (incluye robots.txt)
 ```
 
-Verificación funcional (Chrome headless, 1440/1024/768/375/320 px): login real, guard de rutas,
-dashboard, alta/edición/archivado, tabla→tarjetas, contraste medido y consola sin errores.
-El detalle está en el informe de la entrega.
+Verificación funcional del slice 2A (Supabase local + Playwright/Chrome): compra de tokens,
+renovación con cobro, doble envío con la misma clave, reversión, stock insuficiente, éxito
+parcial con reintento del cobro, cobro posterior, alta/edición de cuenta con vee-validate y
+sheet a 1440/768/375 px. El detalle y los números están en el informe de la entrega.

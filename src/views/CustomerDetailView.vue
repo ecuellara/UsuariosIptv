@@ -71,6 +71,17 @@ function createAccount(): void {
   accountActions.value?.openCreate(customer.value?.id, customer.value?.firstName)
 }
 
+function openRenewal(account?: Account): void {
+  const active = account ?? accounts.value.find((candidate) => !candidate.archivedAt) ?? null
+  accountActions.value?.openRenewal({
+    account: active,
+    customerId: customer.value?.id ?? null,
+    customerName: customer.value
+      ? `${customer.value.firstName} ${customer.value.lastName}`
+      : null,
+  })
+}
+
 async function toggleArchive(): Promise<void> {
   if (!customer.value) return
   confirmLoading.value = true
@@ -180,6 +191,10 @@ async function toggleArchive(): Promise<void> {
             <template #icon><AppIcon name="pencil" :size="18" /></template>
             Editar cliente
           </AppButton>
+          <AppButton variant="secondary" @click="openRenewal()">
+            <template #icon><AppIcon name="refresh" :size="18" /></template>
+            Registrar renovación
+          </AppButton>
           <AppButton variant="primary" @click="createAccount">
             <template #icon><AppIcon name="plus" :size="18" /></template>
             Nueva cuenta
@@ -255,9 +270,14 @@ async function toggleArchive(): Promise<void> {
               <AppButton size="sm" variant="secondary" @click="openAccount(account)">
                 Abrir ficha
               </AppButton>
-              <RouterLink :to="{ name: 'renewals' }" class="btn" data-variant="ghost" data-size="sm">
+              <AppButton
+                v-if="!account.archivedAt"
+                size="sm"
+                variant="ghost"
+                @click="openRenewal(account)"
+              >
                 Renovar
-              </RouterLink>
+              </AppButton>
             </div>
           </li>
         </ul>

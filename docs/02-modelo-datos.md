@@ -197,6 +197,30 @@ Renovación + `amount_paid` (`Σ payments`), `amount_pending` (`amount_agreed �
 `token_cost` (`Σ cost_amount` de sus CONSUMO), `gross_margin` (`amount_agreed − token_cost`),
 `is_reversed`.
 
+### `v_cash_monthly` (flujo de caja por mes)
+`month date`, `income`, `outflow`, `net`, `payments_count`, `token_purchases`.
+Agrupa `v_cash_movements` por mes calendario de Lima. `token_purchases` es **informativo**: ya está
+incluido en `outflow`, no se suma aparte.
+
+### `v_profit_monthly` (rentabilidad por mes)
+`month date`, `agreed_revenue`, `token_cost`, `operating_expenses`, `gross_margin`.
+- `agreed_revenue` = renovaciones **no revertidas** por `effective_at`.
+- `token_cost` = costo congelado de los consumos de esas renovaciones.
+- `operating_expenses` = solo `expenses`; **nunca** compras de tokens.
+- `gross_margin = agreed_revenue − token_cost − operating_expenses`.
+
+Caja y rentabilidad son vistas distintas a propósito (ADR-005): comprar tokens mueve caja, no gasto.
+
+### `v_customer_summary`
+`customer_id`, `first_name`, `last_name`, `phone`, `archived_at`, `accounts_total`,
+`accounts_active`, `next_expiration`, `worst_status`, `last_renewal_at`.
+`accounts_active`, `next_expiration` y `worst_status` ignoran cuentas archivadas. `last_renewal_at`
+ignora renovaciones revertidas.
+
+### `v_token_summary` (una fila)
+`quantity`, `avg_unit_cost`, `inventory_value`, `min_balance`, `below_minimum`.
+Si no devuelve filas, el estado es "no disponible", no "saldo 0".
+
 ## 4. RPC (todas `SECURITY DEFINER`, `search_path = public`)
 
 Todas empiezan con `if not is_admin() then raise exception 'NO_AUTORIZADO' using errcode = '42501'`.

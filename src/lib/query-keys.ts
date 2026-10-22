@@ -37,7 +37,18 @@ export const queryKeys = {
   settings: {
     all: ['settings'] as const,
   },
+  renewals: {
+    all: ['renewals'] as const,
+    byAccount: (accountId: string) =>
+      ['renewals', 'account', accountId] as const,
+    list: (params: { includeReversed: boolean; limit: number }) =>
+      ['renewals', 'list', params] as const,
+  },
   tokens: {
+    all: ['tokens'] as const,
     stock: ['tokens', 'stock'] as const,
+    summary: ['tokens', 'summary'] as const,
+    purchases: ['tokens', 'purchases'] as const,
+    movements: ['tokens', 'movements'] as const,
   },
 }

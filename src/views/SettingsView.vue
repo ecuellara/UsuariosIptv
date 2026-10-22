@@ -103,7 +103,9 @@ const previewQuery = useQuery({
     const dayMs = 86_400_000
     const at = (days: number) => new Date(now + days * dayMs).toISOString()
     const [today, urgent, warning] = await Promise.all([
-      accountStatus(at(0)),
+      // Vence dentro de un minuto: sigue siendo hoy pero aún no pasó, así que
+      // debe dar URGENTE. Pasar `now()` daría VENCIDA por el `>=` de la regla.
+      accountStatus(new Date(now + 60_000).toISOString()),
       accountStatus(at(settings.urgentDays + 1)),
       accountStatus(at(settings.warningDays + 1)),
     ])

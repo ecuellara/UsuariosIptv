@@ -71,36 +71,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/renovaciones',
     name: 'renewals',
-    component: () => import('@/views/ModulePendingView.vue'),
-    meta: {
-      title: 'Renovaciones',
-      pending: {
-        summary:
-          'El registro de la operación que ya hiciste en el panel del proveedor: plan, fecha sugerida editable, cobro y margen.',
-        items: [
-          'Sheet “Registrar renovación” con fecha sugerida por add_months().',
-          'Cobros y reversión con motivo, idempotencia y auditoría.',
-          'Resumen de acordado, cobrado, pendiente y margen por SQL.',
-        ],
-      },
-    },
+    component: () => import('@/views/RenewalsView.vue'),
+    meta: { title: 'Renovaciones' },
   },
   {
     path: '/tokens',
     name: 'tokens',
-    component: () => import('@/views/ModulePendingView.vue'),
-    meta: {
-      title: 'Tokens',
-      pending: {
-        summary:
-          'El inventario de tokens con su costo congelado por consumo. Comprar tokens sale de caja pero no es un gasto del mes.',
-        items: [
-          'Compras, ajustes y libro de movimientos (solo RPC).',
-          'Saldo, costo promedio y valor del inventario calculados en SQL.',
-          'Alerta cuando el saldo baja del mínimo configurado.',
-        ],
-      },
-    },
+    component: () => import('@/views/TokensView.vue'),
+    meta: { title: 'Tokens' },
   },
   {
     path: '/finanzas',

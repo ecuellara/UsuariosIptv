@@ -5,7 +5,9 @@ aplica, cómo se verifica y qué quedó fuera de validación. La fuente de verda
 siendo `docs/02-modelo-datos.md`; si el SQL y ese documento discrepan, el SQL está mal.
 
 Fecha de la última ejecución verificada: **2026-10-21**. Motor de referencia del proyecto:
-PostgreSQL 17 (Supabase). Motor usado para validar: **PostgreSQL 18.6 sobre PGlite 0.5.11**.
+PostgreSQL 17 (Supabase). Motores usados para validar: **PostgreSQL 18.6 sobre PGlite 0.5.11**
+(pruebas automáticas) y **PostgreSQL 17.11.0.004** (Supabase local, con
+`supabase migration up --local` sobre una base ya existente, sin reset).
 
 ---
 
@@ -23,6 +25,7 @@ supabase/
     20261021090400_views.sql        v_account_status, v_cash_movements, v_renewal_summary
     20261021090500_rls_grants.sql   RLS, políticas y GRANT/REVOKE (§5)
     20261021090600_rpc.sql          las 7 RPC de §4
+    20261021090700_reporting_views.sql  vistas de reporte agregadas (§11)
   tests/
     t01_idempotencia_renovacion.sql
     t02_stock_insuficiente.sql
@@ -33,6 +36,7 @@ supabase/
     t07_cash_movements.sql
     t08_escritura_denegada.sql
     t09_saldo_cuadra_libro.sql
+    t10_reporting.sql               caja, rentabilidad, clientes y tokens
 tools/sqlcheck/
   run.mjs                           runner de pruebas (PGlite)
   mutate.mjs                        verifica que las pruebas detectan regresiones
@@ -52,7 +56,7 @@ supabase start          # levanta Postgres + Auth + Studio en local
 supabase db reset       # aplica migrations/ en orden y luego seed.sql
 ```
 
-`supabase db reset` es la verificación "desde cero": borra el volumen local, corre las siete
+`supabase db reset` es la verificación "desde cero": borra el volumen local, corre las ocho
 migraciones en orden lexicográfico y después el seed.
 
 En un proyecto remoto:
@@ -99,13 +103,14 @@ Salida esperada (exit code 0):
 [PASS] supabase/tests/t01_idempotencia_renovacion.sql
 [PASS] supabase/tests/t02_stock_insuficiente.sql
 ...
-RESULTADO: 9/9 pruebas OK
+[PASS] supabase/tests/t10_reporting.sql
+RESULTADO: 10/10 pruebas OK
 ```
 
 Decisiones del arnés de pruebas:
 
 - **Una base PGlite nueva por archivo de prueba.** Las pruebas no comparten estado y, de paso,
-  el DDL se aplica desde cero nueve veces.
+  el DDL se aplica desde cero diez veces.
 - `harness/stub.sql` crea los roles `anon` y `authenticated`, el esquema `auth`, `auth.users` y un
   `auth.uid()` que lee `current_setting('request.jwt.claim.sub')`.
 - `harness/fixtures.sql` inserta el administrador (usuario + `profiles`). Se ejecuta como dueño
@@ -423,28 +428,30 @@ No se creó ningún índice "por si acaso". Los `unique` de `idempotency_key`, `
 
 Se ejecutó SQL de verdad, pero en un entorno concreto. Lo que **no** está verificado:
 
-1. **`supabase/config.toml` no fue validado por la CLI.** Docker estaba apagado y no se inició
-   (`supabase start` no se ejecutó). Las claves usadas son las estándar (`[api]`, `[db]`,
-   `[auth]`, `[auth.email]`, `[studio]`, `[storage]`, `[analytics]`), pero no hay evidencia de
-   que esta versión de la CLI las acepte todas. Verificación pendiente: `supabase status` con
-   Docker arriba.
+1. **`supabase/config.toml` con validación parcial.** El stack local está levantado
+   (`supabase start` con las claves estándar `[api]`, `[db]`, `[auth]`, `[auth.email]`, `[studio]`,
+   `[storage]`, `[analytics]`) y la CLI aplicó una migración incremental con
+   `supabase migration up --local` sobre una base con datos. Lo que sigue sin probarse es
+   `supabase db reset` (§8.8) y el flujo contra un proyecto remoto.
 2. **Concurrencia real no probada.** PGlite es una sola conexión: no se pueden lanzar dos
    transacciones simultáneas. Los `SELECT ... FOR UPDATE` están revisados y son correctos por
    diseño, pero la carrera renovación-vs-compra no se ejecutó. Verificación pendiente: dos
    sesiones `psql` contra Postgres real.
-3. **`auth.uid()` es un stub.** En Supabase real lee el JWT; aquí lee
-   `request.jwt.claim.sub`. `is_admin()` no se probó contra tokens JWT reales ni contra un
-   usuario sin fila en `profiles` autenticado por GoTrue.
+3. **`auth.uid()` es un stub en PGlite.** En Supabase real lee el JWT. Las pruebas de SQL no
+   autentican por GoTrue; en la base local sí se hizo login real (`admin@iptv.local`) para
+   comprobar las vistas por REST, pero no se probó un usuario autenticado sin fila en `profiles`.
 4. **`pgcrypto` no está disponible en PGlite.** No se usa, pero tampoco se probó la migración en
    un Supabase real donde el esquema `extensions` existe.
-5. **PostgREST no se ejercitó.** Las firmas son correctas para llamadas con argumentos
-   nombrados, pero no se probó el mapeo HTTP de errores ni el `Content-Profile`.
+5. **PostgREST: solo lectura de las vistas nuevas.** Se comprobó con login real que
+   `v_cash_monthly`, `v_profit_monthly`, `v_customer_summary` y `v_token_summary` responden
+   `200` a `authenticated` y `401` sin token. El mapeo HTTP de errores de las RPC y el
+   `Content-Profile` siguen sin ejercitarse.
 6. **Rendimiento sin medir.** Con cero o pocas filas, un `EXPLAIN` no dice nada. No hay
    evidencia de planes ni de uso de índices bajo volumen. Verificación pendiente cuando existan
    datos reales.
 7. **Backup y restore no probados.** No hay proyecto Supabase todavía; ver §9.
-8. **`supabase db reset` no ejecutado.** La aplicación "desde cero" se validó con PGlite
-   nueve veces, no con la CLI.
+8. **`supabase db reset` no ejecutado.** La aplicación "desde cero" se validó con PGlite diez
+   veces, no con la CLI.
 9. **Zona horaria de la base.** Las pruebas fuerzan `TimeZone = UTC` (como Supabase). Si alguien
    corre el SQL en una base con otro huso por defecto, todo lo que no usa `AT TIME ZONE`
    explícito podría cambiar de resultado. Las funciones y vistas lo usan siempre.
@@ -533,12 +540,169 @@ No se cambió el documento. Son puntos donde hubo que interpretar:
    privilegios por defecto) más privilegio por columna solo donde aporta (`profiles.display_name`).
    Un GRANT por columna en todas las tablas sería equivalente a nivel de tabla porque las vistas
    leen filas completas. Ver §5.10.
-7. **§1/§2, `min_token_balance`.** Se define y se siembra, pero ninguna RPC ni vista lo usa: es
-   un umbral de alerta de la UI. No se inventó lógica de negocio con él.
+7. **§1/§2, `min_token_balance`.** Se define y se siembra. Ninguna RPC lo usa; lo consume
+   `v_token_summary` (§11) para `below_minimum`. No se inventó lógica de negocio con él.
 
 ---
 
-## 11. Siguiente paso
+## 11. Vistas de reporte (migración `20261021090700`)
+
+### 11.1 Por qué existen
+
+El PostgREST de este proyecto tiene las agregaciones deshabilitadas (`PGRST123`), y `AGENTS.md`
+prohíbe sumar dinero en JavaScript. Por eso todo total de pantalla (caja, rentabilidad, resumen de
+clientes y tarjeta de tokens) se lee de una vista que ya lo calcula en SQL. El frontend **no**
+recibe filas para sumarlas: recibe el total.
+
+Las cuatro son `WITH (security_invoker = true)` y solo tienen `SELECT` para `authenticated`.
+
+### 11.2 DDL resumido
+
+```sql
+-- v_cash_monthly · caja por mes calendario de Lima (fuente: v_cash_movements)
+with movements as (
+  select date_trunc('month', occurred_at at time zone 'America/Lima')::date as month,
+         direction, kind, amount
+  from public.v_cash_movements
+)
+select month,
+       coalesce(sum(amount) filter (where direction = 'IN'), 0)::numeric(12,2)  as income,
+       coalesce(sum(amount) filter (where direction = 'OUT'), 0)::numeric(12,2) as outflow,
+       (coalesce(sum(amount) filter (where direction = 'IN'), 0)
+        - coalesce(sum(amount) filter (where direction = 'OUT'), 0))::numeric(12,2) as net,
+       (count(*) filter (where direction = 'IN'))::int as payments_count,
+       coalesce(sum(amount) filter (where kind = 'COMPRA_TOKENS'), 0)::numeric(12,2) as token_purchases
+from movements group by month;
+
+-- v_profit_monthly · rentabilidad, separada de la caja
+--   confirmed_renewals  = renewals where reversed_at is null, mes de effective_at (Lima)
+--   agreed_revenue      = Σ amount_agreed de confirmed_renewals
+--   token_cost          = Σ cost_amount de token_movements CONSUMO de confirmed_renewals
+--   operating_expenses  = Σ expenses.amount por mes de spent_at (Lima)   -- nunca token_purchases
+--   gross_margin        = agreed_revenue - token_cost - operating_expenses
+--   months              = revenue_by_month ∪ expenses_by_month
+
+-- v_customer_summary · agregados por cliente
+--   status por cuenta   = public.account_status(expires_at, archived_at)   -- no se replica el CASE
+--   accounts_total      = todas las cuentas (incluye archivadas)
+--   accounts_active     = cuentas con archived_at is null
+--   next_expiration     = min(expires_at) de las no archivadas
+--   worst_status        = peor estado de las no archivadas (VENCIDA > URGENTE > PROXIMA > ACTIVA)
+--   last_renewal_at     = max(effective_at) de renovaciones NO revertidas
+
+-- v_token_summary · una fila
+select s.quantity,
+       s.avg_unit_cost,
+       round(s.quantity * s.avg_unit_cost, 2)::numeric(12,2) as inventory_value,
+       st.min_token_balance as min_balance,
+       (s.quantity < st.min_token_balance) as below_minimum
+from public.token_stock s join public.app_settings st on st.id = 1
+where s.id = 1;
+```
+
+### 11.3 Contrato exacto de columnas
+
+| Vista | Columnas (en orden) |
+|---|---|
+| `v_cash_monthly` | `month date`, `income numeric(12,2)`, `outflow numeric(12,2)`, `net numeric(12,2)`, `payments_count int`, `token_purchases numeric(12,2)` |
+| `v_profit_monthly` | `month date`, `agreed_revenue numeric(12,2)`, `token_cost numeric(12,2)`, `operating_expenses numeric(12,2)`, `gross_margin numeric(12,2)` |
+| `v_customer_summary` | `customer_id uuid`, `first_name text`, `last_name text`, `phone text`, `archived_at timestamptz`, `accounts_total int`, `accounts_active int`, `next_expiration timestamptz`, `worst_status text`, `last_renewal_at timestamptz` |
+| `v_token_summary` | `quantity int`, `avg_unit_cost numeric(12,6)`, `inventory_value numeric(12,2)`, `min_balance int`, `below_minimum boolean` |
+
+Semántica que el frontend debe respetar:
+
+1. `month` es el **primer día del mes** (`date`), ya calculado en hora de Lima. Se filtra con
+   `?month=eq.2026-05-01` o `?month=gte.…&month=lt.…`; no se recalcula en TypeScript.
+2. En `v_cash_monthly`, `token_purchases` es **informativo**: ya está dentro de `outflow`. Nunca se
+   suma aparte. `net` puede ser negativo y no es un error.
+3. En `v_profit_monthly`, `operating_expenses` **no** incluye compras de tokens. Comprar tokens
+   mueve la caja (`v_cash_monthly`) y el inventario, no el resultado del mes.
+4. `v_profit_monthly` solo devuelve meses con ingresos confirmados o gastos operativos. Un mes que
+   solo tuvo compras de tokens no tiene fila (todo su efecto es de caja/inventario).
+5. `v_customer_summary.worst_status` es `NULL` si el cliente no tiene cuentas activas, y una cuenta
+   archivada no aporta a `accounts_active`, `next_expiration` ni `worst_status`.
+6. `v_token_summary` no devuelve filas si falta el singleton de `token_stock` o de `app_settings`.
+   0 filas = "no disponible"; no es saldo 0. `below_minimum` es estricto (`quantity < min`).
+
+### 11.4 Privilegios: el REVOKE explícito es obligatorio
+
+En Supabase, los privilegios por defecto del esquema `public` conceden `ALL` sobre **toda relación
+nueva** a `anon` y `authenticated`. Las vistas de `0005` se libraron porque nacieron antes del
+`REVOKE` global de `0006`; estas nacen después. Verificado en la base local: sin `REVOKE`, las
+cuatro vistas quedaban con `DELETE, INSERT, UPDATE, TRUNCATE` para `anon` y `authenticated`.
+La migración hace, en este orden:
+
+```sql
+revoke all on public.v_cash_monthly, public.v_profit_monthly,
+              public.v_customer_summary, public.v_token_summary
+  from anon, authenticated;
+grant select on ... to authenticated;
+```
+
+Estado verificado tras `migration up --local`: `authenticated` = `SELECT`; `anon` = sin privilegios;
+`security_invoker=true` en las cuatro (`pg_class.reloptions`).
+
+### 11.5 Índices: ninguno nuevo, y por qué
+
+Los reportes agrupan **toda la historia** por `date_trunc('month', ts AT TIME ZONE 'America/Lima')`.
+Un índice sobre esa expresión no sirve a este `GROUP BY` (no hay igualdad ni rango que explotar) y
+solo encarecería las escrituras. Los índices existentes (`payments(paid_at)`, `expenses(spent_at)`,
+`token_purchases(purchased_at)`, `renewals(effective_at)`, `token_movements(renewal_id)`) siguen
+sirviendo al detalle y a los filtros por rango. No se creó ningún índice "por si acaso".
+
+### 11.6 Pruebas (`t10_reporting.sql`)
+
+Escenario fijo (mayo 2026, sin depender del reloj): compra de 10 tokens por S/ 50.00, gasto de
+S/ 12.00, renovación confirmada de S/ 75.00 con 5 tokens consumidos y S/ 60.00 cobrados, y una
+segunda renovación de S/ 40.00 con 2 tokens que se revierte.
+
+| Verificación | Esperado |
+|---|---|
+| `v_cash_monthly` mayo | `income 60.00`, `outflow 62.00` (50 + 12), `net -2.00`, `payments_count 1`, `token_purchases 50.00` |
+| Compra en la caja | aparece **1** vez como `COMPRA_TOKENS`; `expenses` sigue con **1** fila por 12.00 |
+| `v_profit_monthly` mayo | `agreed_revenue 75.00` (la revertida no suma), `token_cost 25.00`, `operating_expenses 12.00`, `gross_margin 38.00` |
+| Libro vs vista | hay 2 `CONSUMO` por 35.00; la vista solo toma 25.00 (los de la renovación confirmada) |
+| `v_customer_summary` 3 cuentas | `accounts_total 3`, `accounts_active 2`, `worst_status VENCIDA`, `next_expiration` = la vencida, no la archivada |
+| Sin cuentas / solo archivadas | `accounts_active 0`, `worst_status null`, `next_expiration null` |
+| `last_renewal_at` | ignora la renovación revertida (devuelve la confirmada) |
+| `v_token_summary` | 1 fila, `quantity 5`, `avg 5.000000`, `inventory_value 25.00`, `min_balance 5`, `below_minimum false`; con mínimo 6 pasa a `true` |
+| `authenticated` sin fila en `profiles` | **0 filas** en las cuatro vistas: `security_invoker` deja actuar a la RLS |
+
+Se comprobó que la prueba tiene dientes con cuatro mutaciones temporales de la migración nueva
+(deshacer compras de tokens en `operating_expenses`, contar archivadas en `accounts_active`, contar
+la renovación revertida, poner `security_invoker = false` en `v_customer_summary`): las cuatro la
+hicieron fallar, y se restauró el archivo.
+
+### 11.7 Rollback
+
+Son vistas sin datos; el rollback no pierde información y no requiere backup:
+
+```sql
+drop view if exists public.v_token_summary;
+drop view if exists public.v_customer_summary;
+drop view if exists public.v_profit_monthly;
+drop view if exists public.v_cash_monthly;
+delete from supabase_migrations.schema_migrations where version = '20261021090700';
+```
+
+Criterio de aborto: si una vista devuelve totales distintos de `v_cash_movements` / `expenses` /
+`renewals`, se revierten las vistas y se investiga antes de que el frontend las consuma.
+
+### 11.8 Limitaciones conocidas
+
+1. **Agregación de historia completa.** Con pocos miles de filas es instantáneo; no hay `EXPLAIN`
+   con volumen real todavía. Si el histórico crece, la salida es una vista materializada o
+   pre-agregados mensuales, no un índice sobre la expresión.
+2. **Sin filtro por rango en la vista.** PostgREST no parametriza vistas; el filtro `month=…` se
+   aplica después del `GROUP BY`. Para un mes concreto el coste es el mismo que para todos.
+3. **`v_profit_monthly` no devuelve meses sin ingresos ni gastos.** El frontend debe tratar la
+   ausencia de fila como ceros, no como error.
+4. **`service_role` conserva privilegios totales** en las vistas (comportamiento de Supabase). Es
+   esperado: esa clave nunca viaja al navegador.
+
+---
+
+## 12. Siguiente paso
 
 Para `frontend-web`:
 
@@ -549,5 +713,7 @@ Para `frontend-web`:
 3. Usar `add_months(...)` para la fecha sugerida (o `date-fns` con la misma regla, pero la
    verificación final debe pasar por `add_months`).
 4. Escribir en `renewals`, `payments`, `token_*`, `audit_log` y `contact_logs` **solo** por RPC.
-5. Para `db-architect` en la Ola 3: prueba de concurrencia con dos conexiones reales y `EXPLAIN`
+5. Leer caja, rentabilidad, resumen de clientes y tarjeta de tokens de `v_cash_monthly`,
+   `v_profit_monthly`, `v_customer_summary` y `v_token_summary` (§11). No sumar en TypeScript.
+6. Para `db-architect` en la Ola 3: prueba de concurrencia con dos conexiones reales y `EXPLAIN`
    con datos de volumen antes de tocar cualquier índice.

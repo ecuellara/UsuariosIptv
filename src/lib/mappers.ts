@@ -9,7 +9,11 @@ import type {
   FollowupStatus,
   Plan,
   Profile,
+  RenewalSummary,
+  TokenMovement,
+  TokenPurchase,
   TokenStock,
+  TokenSummary,
 } from '@/types/domain'
 import {
   isAccountStatus,
@@ -138,5 +142,133 @@ export function toCashMovement(row: Views<'v_cash_movements'>): CashMovement {
     description: row.description,
     reference: row.reference,
     sourceId: row.source_id,
+  }
+}
+
+/* --- Renovaciones y tokens ------------------------------------------------ */
+
+function requiredNumber(value: number | null, field: string): number {
+  if (value === null || !Number.isFinite(value)) {
+    throw new AppError(`Falta un dato numérico (${field}).`, 'DATA')
+  }
+  return value
+}
+
+type RenewalSummaryRow = Pick<
+  Views<'v_renewal_summary'>,
+  | 'id'
+  | 'account_id'
+  | 'plan_id'
+  | 'plan_name'
+  | 'operation_type'
+  | 'duration_months'
+  | 'devices'
+  | 'price_snapshot'
+  | 'amount_agreed'
+  | 'tokens_used'
+  | 'previous_expiration'
+  | 'new_expiration'
+  | 'expiration_edited'
+  | 'effective_at'
+  | 'recorded_at'
+  | 'amount_paid'
+  | 'amount_pending'
+  | 'token_cost'
+  | 'gross_margin'
+  | 'is_reversed'
+  | 'reversal_reason'
+  | 'notes'
+>
+
+export function toRenewalSummary(row: RenewalSummaryRow): RenewalSummary {
+  const operationType = row.operation_type
+  if (operationType !== 'ACTIVACION' && operationType !== 'RENOVACION') {
+    throw new AppError('La renovación tiene un tipo desconocido.', 'DATA')
+  }
+  return {
+    id: required(row.id, 'id'),
+    accountId: required(row.account_id, 'account_id'),
+    planId: required(row.plan_id, 'plan_id'),
+    planName: required(row.plan_name, 'plan_name'),
+    operationType,
+    durationMonths: requiredNumber(row.duration_months, 'duration_months'),
+    devices: requiredNumber(row.devices, 'devices'),
+    priceSnapshot: requiredNumber(row.price_snapshot, 'price_snapshot'),
+    amountAgreed: requiredNumber(row.amount_agreed, 'amount_agreed'),
+    tokensUsed: requiredNumber(row.tokens_used, 'tokens_used'),
+    previousExpiration: row.previous_expiration,
+    newExpiration: required(row.new_expiration, 'new_expiration'),
+    expirationEdited: required(row.expiration_edited, 'expiration_edited'),
+    effectiveAt: required(row.effective_at, 'effective_at'),
+    recordedAt: required(row.recorded_at, 'recorded_at'),
+    amountPaid: requiredNumber(row.amount_paid, 'amount_paid'),
+    amountPending: requiredNumber(row.amount_pending, 'amount_pending'),
+    tokenCost: requiredNumber(row.token_cost, 'token_cost'),
+    grossMargin: requiredNumber(row.gross_margin, 'gross_margin'),
+    isReversed: required(row.is_reversed, 'is_reversed'),
+    reversalReason: row.reversal_reason,
+    notes: row.notes,
+  }
+}
+
+export function toTokenSummary(row: Views<'v_token_summary'>): TokenSummary {
+  return {
+    quantity: requiredNumber(row.quantity, 'quantity'),
+    avgUnitCost: requiredNumber(row.avg_unit_cost, 'avg_unit_cost'),
+    inventoryValue: requiredNumber(row.inventory_value, 'inventory_value'),
+    minBalance: requiredNumber(row.min_balance, 'min_balance'),
+    belowMinimum: required(row.below_minimum, 'below_minimum'),
+  }
+}
+
+export function toTokenPurchase(
+  row: Pick<
+    Tables<'token_purchases'>,
+    | 'id'
+    | 'quantity'
+    | 'total_cost'
+    | 'unit_cost'
+    | 'purchased_at'
+    | 'supplier'
+    | 'reference'
+    | 'notes'
+  >,
+): TokenPurchase {
+  return {
+    id: row.id,
+    quantity: row.quantity,
+    totalCost: row.total_cost,
+    unitCost: requiredNumber(row.unit_cost, 'unit_cost'),
+    purchasedAt: row.purchased_at,
+    supplier: row.supplier,
+    reference: row.reference,
+    notes: row.notes,
+  }
+}
+
+export function toTokenMovement(
+  row: Pick<
+    Tables<'token_movements'>,
+    | 'id'
+    | 'movement_type'
+    | 'quantity_delta'
+    | 'unit_cost'
+    | 'cost_amount'
+    | 'renewal_id'
+    | 'purchase_id'
+    | 'reason'
+    | 'created_at'
+  >,
+): TokenMovement {
+  return {
+    id: row.id,
+    type: row.movement_type,
+    quantityDelta: row.quantity_delta,
+    unitCost: row.unit_cost,
+    costAmount: row.cost_amount,
+    renewalId: row.renewal_id,
+    purchaseId: row.purchase_id,
+    reason: row.reason,
+    createdAt: row.created_at,
   }
 }

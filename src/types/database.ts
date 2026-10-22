@@ -1,4 +1,4 @@
-﻿
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
@@ -93,6 +93,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "contact_logs_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "v_customer_summary"
+      referencedColumns: ["customer_id"]
     }
                   ]
                 },"customers": {
@@ -153,6 +159,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "iptv_accounts_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "v_customer_summary"
+      referencedColumns: ["customer_id"]
     }
                   ]
                 },"payments": {
@@ -392,11 +404,41 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "iptv_accounts_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "v_customer_summary"
+      referencedColumns: ["customer_id"]
     }
+                  ]
+                },"v_cash_monthly": {
+                  Row: {
+                    "income": number | null,"month": string | null,"net": number | null,"outflow": number | null,"payments_count": number | null,"token_purchases": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
                   ]
                 },"v_cash_movements": {
                   Row: {
                     "amount": number | null,"description": string | null,"direction": string | null,"kind": string | null,"occurred_at": string | null,"reference": string | null,"source_id": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
+                },"v_customer_summary": {
+                  Row: {
+                    "accounts_active": number | null,"accounts_total": number | null,"archived_at": string | null,"customer_id": string | null,"first_name": string | null,"last_name": string | null,"last_renewal_at": string | null,"next_expiration": string | null,"phone": string | null,"worst_status": string | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
+                  ]
+                },"v_profit_monthly": {
+                  Row: {
+                    "agreed_revenue": number | null,"gross_margin": number | null,"month": string | null,"operating_expenses": number | null,"token_cost": number | null
                   }
                   ComputedFields: never
                   Relationships: [
@@ -439,6 +481,14 @@ isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
+                  ]
+                },"v_token_summary": {
+                  Row: {
+                    "avg_unit_cost": number | null,"below_minimum": boolean | null,"inventory_value": number | null,"min_balance": number | null,"quantity": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    
                   ]
                 }
           }

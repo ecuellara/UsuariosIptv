@@ -1,4 +1,4 @@
-import type { AccountStatus, FollowupStatus } from '@/types/domain'
+import type { AccountStatus, FollowupStatus, MovementType, PaymentMethod } from '@/types/domain'
 
 /* Formato de presentación. La UI solo formatea: no decide estados ni suma
    importes (DESIGN.md D-10). Las fechas siempre se muestran en America/Lima:
@@ -69,9 +69,40 @@ export function formatTokens(value: number | null | undefined): string {
   return `${formatInteger(value)} ${value === 1 ? 'token' : 'tokens'}`
 }
 
+/** Cantidad con signo explícito: `+10`, `−3` (U+2212, DESIGN.md §10). */
+export function formatSignedInteger(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  if (value < 0) return `−${formatInteger(Math.abs(value))}`
+  return `+${formatInteger(value)}`
+}
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  YAPE: 'Yape',
+  PLIN: 'Plin',
+  TRANSFERENCIA: 'Transferencia',
+  EFECTIVO: 'Efectivo',
+  OTRO: 'Otro',
+}
+
+export function paymentMethodLabel(method: PaymentMethod | null | undefined): string {
+  if (!method) return '—'
+  return PAYMENT_METHOD_LABELS[method]
+}
+
+const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
+  COMPRA: 'Compra',
+  CONSUMO: 'Consumo',
+  AJUSTE: 'Ajuste',
+  REVERSION: 'Reversión',
+}
+
+export function movementTypeLabel(type: MovementType | null | undefined): string {
+  if (!type) return '—'
+  return MOVEMENT_TYPE_LABELS[type]
+}
+
 /** 9 dígitos → `987 654 321`. Otros largos (modelo 9–15) → grupos de 3. */
-export function formatPhone(digits: string | null | undefined): string {
-  if (!digits) return '—'
+export function formatPhone(digits: string | null | undefined): string {  if (!digits) return '—'
   const clean = digits.replace(/\D/g, '')
   if (clean.length === 0) return '—'
   if (clean.length === 9) return `${clean.slice(0, 3)} ${clean.slice(3, 6)} ${clean.slice(6, 9)}`

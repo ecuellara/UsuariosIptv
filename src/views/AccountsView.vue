@@ -93,13 +93,17 @@ const columns: TableColumn[] = [
   { key: 'reference', label: 'Referencia', width: '170px', hideBelow: 'lg' },
   { key: 'expires', label: 'Vence', width: '140px', align: 'right', card: 'end' },
   { key: 'verification', label: 'Verificación', width: '150px', hideBelow: 'xl' },
-  { key: 'actions', label: 'Acciones', width: '110px', align: 'right', card: 'actions' },
+  { key: 'actions', label: 'Acciones', width: '190px', align: 'right', card: 'actions' },
 ]
 
 const accountActions = ref<InstanceType<typeof AccountActionsHost> | null>(null)
 
 function openDetail(account: Account): void {
   accountActions.value?.openDetail(account)
+}
+
+function openRenewal(account?: Account): void {
+  accountActions.value?.openRenewal(account ? { account } : {})
 }
 
 function createAccount(): void {
@@ -165,10 +169,16 @@ watch(() => route.query, () => void handleDeepLink(), { flush: 'post' })
           según los filtros actuales. Sin contraseñas: solo usuario, referencia y fechas.
         </p>
       </div>
-      <AppButton variant="primary" @click="createAccount">
-        <template #icon><AppIcon name="plus" :size="18" /></template>
-        Nueva cuenta
-      </AppButton>
+      <div class="flex flex-wrap items-center gap-2">
+        <AppButton variant="secondary" @click="openRenewal()">
+          <template #icon><AppIcon name="refresh" :size="18" /></template>
+          Registrar renovación
+        </AppButton>
+        <AppButton variant="primary" @click="createAccount">
+          <template #icon><AppIcon name="plus" :size="18" /></template>
+          Nueva cuenta
+        </AppButton>
+      </div>
     </header>
 
     <div class="flex flex-col gap-3">
@@ -258,6 +268,17 @@ watch(() => route.query, () => void handleDeepLink(), { flush: 'post' })
 
       <template #cell-actions="{ row }">
         <div class="dt-actions">
+          <button
+            v-if="!row.archivedAt"
+            type="button"
+            class="btn"
+            data-variant="secondary"
+            data-size="sm"
+            :aria-label="`Registrar renovación de ${row.externalUsername}`"
+            @click="openRenewal(row)"
+          >
+            Renovar
+          </button>
           <button
             type="button"
             class="btn"

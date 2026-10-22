@@ -17,8 +17,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { name: 'customers', label: 'Clientes', icon: 'users' },
   { name: 'accounts', label: 'Cuentas IPTV', icon: 'tv' },
   { name: 'followup', label: 'Seguimiento', icon: 'message-circle', soon: true },
-  { name: 'renewals', label: 'Renovaciones', icon: 'refresh', soon: true },
-  { name: 'tokens', label: 'Tokens', icon: 'coins', soon: true },
+  { name: 'renewals', label: 'Renovaciones', icon: 'refresh' },
+  { name: 'tokens', label: 'Tokens', icon: 'coins' },
   { name: 'finance', label: 'Finanzas', icon: 'wallet', soon: true },
   { name: 'settings', label: 'Configuración', icon: 'settings' },
 ]
