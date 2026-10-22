@@ -21,6 +21,7 @@ Regla: cada fila se escribe el mismo día. Sin fecha, archivo y resultado, la fi
 | Fecha | Archivo restaurado | Descifrado | Destino | Resultado | Conteos OK | Diferencias | Responsable | Notas |
 |---|---|---|---|---|---|---|---|---|
 | 2026-10-21 | `verify-20261021-231156.dump` (409,3 KB, sin cifrar) | N/A (en claro) | Contenedor `postgres:17` desechable en Docker | **OK en el núcleo**, exit 1 por extensiones | **Sí** | Ninguna en tablas de negocio | Lead | 15 tablas, 7 vistas, 7 RPC, 5 planes, 4 plantillas, `token_stock` 0. 393 errores **no-core** por *event triggers* de `extensions` y propiedad de extensiones (`pgrst_ddl_watch`, `pgrst_drop_watch`). Ver nota metodológica. |
+| 2026-10-22 | `iptv-20261022T060244Z.dump.age` (412,4 KB, **cifrado y automático**) | `age --decrypt` OK | Contenedor `postgres:17` desechable | **OK en el núcleo**; `auth.users` no restaura | **Sí** (15/7/5/4/1/1) | `auth.users` 0 filas | Lead | Backup generado por `backup.yml` en GitHub Actions. 394 errores no-core. `public` completo: 15 tablas, 7 vistas, 5 planes, 4 plantillas, 1 perfil. |
 
 ### Nota metodológica: qué significa `pg_restore` con exit 1
 
@@ -45,6 +46,24 @@ select
 
 Debe coincidir exactamente con el origen. Para una prueba 1:1 de la plataforma, restaurar sobre un
 **proyecto Supabase de prueba**, no sobre un Postgres limpio.
+
+### `auth.users` no restaura en un contenedor genérico
+
+Verificado el 2026-10-22: el dump **sí contiene** el `COPY` de `auth.users`, pero al restaurarlo en
+el contenedor de pruebas falla con:
+
+```
+column "email_confirmed_at" of relation "users" does not exist
+```
+
+Esa tabla pertenece a GoTrue y su esquema cambia entre versiones. Si el destino no tiene la misma
+versión de GoTrue, la copia falla y el login queda sin usuarios (los datos de negocio sí están).
+
+Consecuencias operativas:
+- **Restore 1:1**: hacerlo sobre un proyecto Supabase (misma versión de GoTrue).
+- **Si solo hay Postgres**: restaurar `public`, recrear el admin con la Admin API y re-vincular
+  `profiles` (ver `docs/06-runbook.md` §3.1). El `id` del admin original se conserva en
+  `profiles.id`, así que se puede crear el usuario nuevo y actualizar la fila o insertar una nueva.
 
 ### Checklist de la prueba
 

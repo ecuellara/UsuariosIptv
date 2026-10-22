@@ -114,6 +114,25 @@ Nunca restaures sobre producción sin haber probado antes.
    Eso no invalida la restauración: valida contando tablas, vistas, RPC y filas del núcleo
    (ver `docs/backups.md` §2). Para una prueba 1:1 usa un proyecto Supabase de prueba, no un
    contenedor genérico.
+
+   ### 3.1 Si `auth.users` no restaura
+
+   `auth.users` pertenece a GoTrue y su esquema cambia entre versiones. En un contenedor con otra
+   versión, la copia falla (`column "email_confirmed_at" ... does not exist`) y el login queda sin
+   usuarios, aunque los datos de negocio estén completos.
+
+   Procedimiento de recuperación:
+   1. Restaura `public` (clientes, cuentas, renovaciones, pagos, tokens) y confirma los conteos.
+   2. Crea el administrador con la Admin API (`POST /auth/v1/admin/users`, `email_confirm: true`).
+   3. Re-vincula el perfil. El UUID original está en `profiles.id`:
+      ```sql
+      -- Opción A: mover el perfil al usuario nuevo
+      update public.profiles set id = '<uuid nuevo>' where id = '<uuid original>';
+      -- Opción B: crear un perfil nuevo y borrar el huérfano (solo si no hay FKs que lo referencien)
+      insert into public.profiles (id, display_name) values ('<uuid nuevo>', '<nombre>');
+      delete from public.profiles where id = '<uuid original>';
+      ```
+   4. Entra con la contraseña nueva, activa 2FA y revisa el dashboard.
 4. Compara `token_stock.quantity` con `sum(quantity_delta)` de `token_movements`.
 5. Anota fecha, archivo y resultado en `docs/backups.md` (créalo el primer día).
 
