@@ -69,6 +69,7 @@ src/
     whatsapp.ts            plantillas: variables, días restantes, normalización y wa.me
     mappers.ts             fila de vista/tabla → entidad de dominio (falla si falta un dato)
     renewals.ts            fecha que restaura una reversión (misma regla que el SQL)
+    mfa.ts                 TOTP: normalización del código, decisión aal1/aal2, QR y contraseña
     query-client.ts        QueryClient + retry + handler de 401
     query-keys.ts          claves de caché centralizadas
   services/
@@ -79,9 +80,11 @@ src/
     cash.ts                v_cash_movements (solo lectura)
     finance.ts             v_cash_monthly, v_profit_monthly y gastos (CRUD auditado)
     followups.ts           bandeja (vista + followups), plantillas y contact_logs
+    mfa.ts                 wrappers de supabase.auth.mfa (enroll/challenge/verify/unenroll)
     payments.ts            pagos de una renovación (solo lectura)
     profile.ts             profiles.display_name
     rpc.ts                 wrappers tipados de las 7 RPC + account_status/add_months
+    security.ts            reautenticación con contraseña y updateUser({ password })
   stores/
     session.ts             sesión + profiles ("sin acceso" si no hay fila)
     preferences.ts         tema y densidad (localStorage)
@@ -106,7 +109,8 @@ src/
                            AccountContactHistory (historial de la ficha)
     finance/               ExpenseFormModal (alta/edición de gastos)
     tokens/                PurchaseTokensModal, AdjustTokensModal
-    settings/              PlanRowEditor, WhatsAppTemplateCard
+    settings/              PlanRowEditor, WhatsAppTemplateCard,
+                           SecuritySettings (2FA TOTP + cambio de contraseña)
   views/
     LoginView, DashboardView, CustomersView, CustomerDetailView, AccountsView,
     FollowupView, RenewalsView, TokensView, FinanceView, SettingsView,
@@ -299,6 +303,36 @@ lleva `soon`.
    evento, estado resultante, notas y mensaje snapshot) en solo lectura. La «próxima acción» es la
    de `renewal_followups`, porque `contact_logs` no guarda esa columna.
 
+### Autenticación en dos pasos (MFA TOTP)
+
+1. **La fuente de verdad es Supabase Auth.** El panel no guarda secretos TOTP ni códigos: usa
+   `supabase.auth.mfa.*` (`enroll`, `challenge`, `verify`, `unenroll`, `listFactors`) y
+   `getAuthenticatorAssuranceLevel()`. El QR se muestra como data URL (nunca con `v-html`) y el
+   secreto se borra del estado en cuanto el factor queda verificado.
+2. **Desafío antes de navegar.** Tras `signInWithPassword` (y en cada recarga con sesión guardada)
+   se consulta el nivel de garantía. Si `nextLevel === 'aal2'` y `currentLevel !== 'aal2'`, la app
+   no entra: `LoginView` pinta el formulario de 6 dígitos y el guard bloquea cualquier ruta privada.
+   Al verificar, supabase-js guarda el JWT `aal2`, se relee la sesión y se carga el perfil.
+3. **Contrato con `is_admin()`.** Cuando el usuario tiene factores verificados y la sesión es
+   `aal1`, las vistas devuelven 0 filas y las RPC responden `NO_AUTORIZADO`. La app interpreta una
+   lectura vacía de `profiles` como «segundo factor pendiente» (nunca como «sin acceso») y redirige
+   al desafío. `mfaPending` es estado de sesión: un logout lo limpia.
+4. **Configuración → Seguridad.** Sin factor → `Activar 2FA` (QR + secreto visible una vez).
+   Factor verificado → nombre, fecha y `Desactivar 2FA`, que exige confirmación explícita y el
+   código actual antes de `unenroll`. Un enrolamiento abandonado queda `unverified` y se limpia en
+   el siguiente intento.
+5. **Cambio de contraseña.** Mínimo 12 caracteres, medidor de fortaleza y errores por campo.
+   La contraseña actual se comprueba con `signInWithPassword` en un cliente efímero sin
+   persistencia: así el `signIn` no degrada a `aal1` la sesión que ya pasó el TOTP. Después se
+   llama a `updateUser({ password })`. Los errores de Auth se traducen con `toUserMessage()`.
+6. **Prerrequisito operativo.** TOTP debe estar habilitado en Supabase Auth. En local:
+   `[auth.mfa.totp] enroll_enabled = true` y `verify_enabled = true` en `supabase/config.toml`
+   (no se toca desde el frontend); en la nube, Authentication → Providers → MFA. Si está apagado,
+   `enroll` devuelve `mfa_totp_enroll_not_enabled` y la UI lo dice.
+7. **Sin dependencias TOTP en el bundle.** La generación/validación del código es del servidor.
+   `lib/mfa.ts` solo normaliza el código, decide si hace falta desafío, construye el data URL del
+   QR y valida la contraseña localmente.
+
 ---
 
 ## 5. Pendientes y riesgos conocidos
@@ -309,6 +343,8 @@ lleva `soon`.
 | 2 | Bandeja con cruce en cliente | Los filtros van a PostgREST, pero el cruce con `renewal_followups` y el orden por próxima acción se resuelven en memoria (tope 1000). Con más volumen conviene una vista SQL | `db-architect` / `frontend-web` |
 | 3 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
 | 4 | `/renovaciones` a ≤1280 | La tabla conserva scroll horizontal y `Margen` puede quedar bajo la columna fija; a 1440 ya cabe completa. El dato sigue en la ficha de la cuenta | `frontend-web` |
+| 5 | TOTP deshabilitado en el stack local | `supabase/config.toml` no trae `[auth.mfa.totp]`; `enroll` responde `mfa_totp_enroll_not_enabled`. La verificación E2E se hizo con GoTrue temporalmente habilitado y se restauró. Falta habilitarlo en el archivo (no lo toca el frontend) | owner / `db-architect` |
+| 6 | Efecto de `is_admin()` con AAL2 | La migración de `db-architect` no estaba aplicada al stack local durante esta entrega. El flujo de Auth se verificó; la denegación RLS con `aal1` se valida cuando se aplique la migración | `db-architect` |
 
 ### Desviaciones conscientes del documento de diseño
 
@@ -344,6 +380,11 @@ del formulario se registró por error una renovación con cobro de S/ 15.00 en l
 inicial. Ese cobro sigue en caja, como manda el modelo (la reversión no devuelve dinero). No se
 ejecutó `db reset` ni se tocó `supabase/**`.
 
+En la verificación de MFA se creó un factor TOTP de prueba, se confirmó y se eliminó por la propia
+UI. `auth.mfa_factors` quedó con **0 filas**. La contraseña del admin se cambió a una temporal para
+probar el flujo, se comprobó que la anterior ya no entraba y se **restauró** a `IptvLocal2026!`.
+No se ejecutó `db reset` ni se tocó `supabase/**`.
+
 ---
 
 ## 6. Verificación ejecutada
@@ -351,7 +392,7 @@ ejecutó `db reset` ni se tocó `supabase/**`.
 ```bash
 npm run typecheck   # sin salida = sin errores
 npm run lint        # sin salida = sin errores
-npm run test        # 60 pruebas en 7 archivos
+npm run test        # 72 pruebas en 8 archivos
 npm run build       # dist/ generado (incluye robots.txt)
 ```
 
@@ -412,4 +453,33 @@ Verificación de los hallazgos de QA (Playwright/Chrome + Supabase local, `axe-c
   sin cerrarlo; el footer del sheet baja de 205 a 123 px con altura 600; la tabla de planes a 1024
   usa dos columnas por tarjeta (385 px de alto, antes 529).
 - 375/768/1024/1440: `document.scrollWidth = clientWidth` en las seis rutas; consola sin errores.
+
+### Verificación de MFA (TOTP) y cambio de contraseña
+
+Ejecutada con Playwright sobre Chrome contra Supabase local. El stack local trae TOTP apagado
+(`GOTRUE_MFA_TOTP_ENROLL_ENABLED=false`), así que la prueba levantó **temporalmente** el contenedor
+de GoTrue con `GOTRUE_MFA_TOTP_ENROLL_ENABLED=true` y `..._VERIFY_ENABLED=true` usando la misma
+base y las mismas claves; al terminar se restauró el contenedor original (flags en `false`). No se
+editaron `supabase/**` ni `.env*`.
+
+- Enrolar TOTP con el secreto leído del QR (`otplib` fuera del repo) → la UI pasa a «Verificación
+  en dos pasos activa» y el secreto desaparece. En `auth.mfa_factors`:
+  `9c68e82a-37ca-4f37-b627-95cad3223f75 | 409fcd86-… | totp | verified | IPTV Manager | 2026-10-22 05:39:58.85463+00 | 2026-10-22 05:39:59.370445+00`.
+- Logout → login con la misma contraseña → aparece el desafío. Código incorrecto → mensaje
+  «Código incorrecto…» con `role="alert"`, sin navegar; código correcto → dashboard.
+- Login de nuevo (aal1) y `goto /` → el guard redirige a `/login?redirect=/`; recargar mantiene el
+  desafío. No se puede entrar sin el código.
+- Configuración → Seguridad → Desactivar 2FA: aviso de riesgo + código actual; al confirmar,
+  `auth.mfa_factors` queda **vacío** y el siguiente login ya no pide código.
+- Cambio de contraseña con la actual (`signInWithPassword` en cliente efímero) + `updateUser`:
+  la contraseña nueva entra y la anterior devuelve «No pudimos iniciar sesión». Después se restauró
+  `IptvLocal2026!` y se comprobó por API que la temporal ya no entra.
+- Capturas a 320/768/1024/1440: el desafío no desborda el documento; `#seguridad` no desborda en
+  ningún ancho. (A 320 px la página completa de Configuración ya tenía desborde horizontal en
+  «Reglas de vencimiento» y la tabla de Planes, fuera de este alcance.) Consola sin errores
+  JavaScript; los dos `console.error` de red fueron el 422 esperado del código erróneo y el 400
+  esperado de la contraseña vieja.
+- **No verificado en esta entrega**: el efecto de `is_admin()` con AAL2 sobre RLS/RPC, porque la
+  migración de `db-architect` no estaba aplicada al stack local. La app ya interpreta el caso
+  (0 filas con factor pendiente → desafío) y se validará al aplicarla.
 

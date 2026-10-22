@@ -98,6 +98,19 @@ router.beforeEach(async (to) => {
   const session = useSessionStore()
   await session.ensureInitialized()
 
+  /* Con factores verificados y sesión aal1 no se navega a ninguna ruta del
+     panel: primero se completa el desafío TOTP en /login. Se comprueba antes
+     que `access`, porque en ese estado el perfil aún no se pudo leer. */
+  if (session.mfaPending) {
+    if (to.name === 'login') return true
+    return {
+      name: 'login',
+      query: {
+        ...(to.fullPath === '/' ? {} : { redirect: to.fullPath }),
+      },
+    }
+  }
+
   if (to.meta.public === true) {
     if (to.name === 'login' && session.isAuthenticated) {
       return { name: 'dashboard' }

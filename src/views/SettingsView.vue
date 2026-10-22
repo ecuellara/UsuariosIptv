@@ -18,6 +18,7 @@ import { usePreferencesStore, type DensityPreference, type ThemePreference } fro
 import { useSessionStore } from '@/stores/session'
 import { statusLabel } from '@/lib/format'
 import PlanRowEditor from '@/components/settings/PlanRowEditor.vue'
+import SecuritySettings from '@/components/settings/SecuritySettings.vue'
 import WhatsAppTemplateCard from '@/components/settings/WhatsAppTemplateCard.vue'
 
 const queryClient = useQueryClient()
@@ -209,6 +210,7 @@ function setDensity(value: DensityPreference): void {
 
 const sections = [
   { id: 'perfil', label: 'Perfil' },
+  { id: 'seguridad', label: 'Seguridad' },
   { id: 'reglas', label: 'Reglas de vencimiento' },
   { id: 'planes', label: 'Planes' },
   { id: 'plantillas', label: 'Plantillas de WhatsApp' },
@@ -276,6 +278,9 @@ const sections = [
             </div>
           </div>
         </section>
+
+        <!-- Seguridad: 2FA y contraseña -->
+        <SecuritySettings />
 
         <!-- Reglas -->
         <section id="reglas" class="panel p-5" aria-labelledby="reglas-titulo">

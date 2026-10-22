@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -7,6 +7,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import { useSessionStore } from '@/stores/session'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { toUserMessage } from '@/lib/errors'
+import { isOtpComplete, mfaErrorMessage, normalizeOtpCode } from '@/lib/mfa'
 
 const session = useSessionStore()
 const route = useRoute()
@@ -18,6 +19,11 @@ const showPassword = ref(false)
 const fieldError = ref<string | null>(null)
 const submitting = ref(false)
 
+const challengeCode = ref('')
+const challengeError = ref<string | null>(null)
+const verifying = ref(false)
+const challengeInput = ref<InstanceType<typeof AppInput> | null>(null)
+
 const expired = computed(
   () => route.query.expired === '1' || session.expiredNotice,
 )
@@ -25,13 +31,37 @@ const canSubmit = computed(
   () => email.value.trim().length > 0 && password.value.length > 0 && !submitting.value,
 )
 const noAccess = computed(
-  () => session.hasSession && session.access === 'denied',
+  () => session.hasSession && session.access === 'denied' && !session.mfaPending,
 )
+const mfaPending = computed(() => session.mfaPending)
+const canVerify = computed(
+  () => isOtpComplete(challengeCode.value) && !verifying.value,
+)
+
+const challengeCodeModel = computed({
+  get: () => challengeCode.value,
+  set: (value: string) => {
+    challengeCode.value = normalizeOtpCode(value)
+    challengeError.value = null
+  },
+})
 
 const redirectTarget = computed(() => {
   const value = route.query.redirect
   return typeof value === 'string' && value.startsWith('/') ? value : '/'
 })
+
+async function focusChallenge(): Promise<void> {
+  await nextTick()
+  challengeInput.value?.focus()
+}
+
+watch(mfaPending, (pending) => {
+  if (!pending) return
+  challengeCode.value = ''
+  challengeError.value = null
+  void focusChallenge()
+}, { immediate: true })
 
 async function submit(): Promise<void> {
   fieldError.value = null
@@ -49,6 +79,11 @@ async function submit(): Promise<void> {
   submitting.value = true
   try {
     await session.signIn(email.value.trim(), password.value)
+    if (session.mfaPending) {
+      password.value = ''
+      await focusChallenge()
+      return
+    }
     if (session.access === 'granted') {
       await router.replace(redirectTarget.value)
     }
@@ -62,9 +97,37 @@ async function submit(): Promise<void> {
   }
 }
 
+async function verifyChallenge(): Promise<void> {
+  challengeError.value = null
+  if (!isOtpComplete(challengeCode.value)) {
+    challengeError.value = 'Escribe los 6 dígitos del código.'
+    await focusChallenge()
+    return
+  }
+
+  verifying.value = true
+  try {
+    await session.verifyMfa(challengeCode.value)
+    if (session.access === 'granted') {
+      await router.replace(redirectTarget.value)
+    }
+  } catch (error) {
+    challengeError.value = mfaErrorMessage(
+      error,
+      'No pudimos verificar el código. Inténtalo de nuevo.',
+    )
+    challengeCode.value = ''
+    await focusChallenge()
+  } finally {
+    verifying.value = false
+  }
+}
+
 async function leave(): Promise<void> {
   await session.signOut()
   password.value = ''
+  challengeCode.value = ''
+  challengeError.value = null
 }
 </script>
 
@@ -76,7 +139,62 @@ async function leave(): Promise<void> {
     </div>
 
     <div class="w-full max-w-(--layout-login-w) rounded-lg border border-border bg-surface p-5 shadow-sm sm:p-8">
-      <template v-if="noAccess">
+      <!-- Desafío TOTP: hay factores verificados y la sesión es aal1. -->
+      <template v-if="mfaPending">
+        <h1 class="text-2xl font-semibold text-content">Verificación en dos pasos</h1>
+        <p class="mt-2 text-base text-content-muted">
+          Abre tu aplicación de autenticación y escribe el código de 6 dígitos
+          para completar el inicio de sesión.
+        </p>
+        <p class="mt-1 text-sm text-content-muted">
+          Cuenta: <span class="text-content">{{ session.userEmail }}</span>
+        </p>
+
+        <form class="mt-6 flex flex-col gap-4" novalidate @submit.prevent="verifyChallenge">
+          <AppInput
+            ref="challengeInput"
+            v-model="challengeCodeModel"
+            label="Código de verificación"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            enterkeyhint="done"
+            hint="6 dígitos. Se aceptan espacios al pegar."
+            :error="challengeError"
+            :required="true"
+            :disabled="verifying"
+            autofocus
+          />
+
+          <AppButton
+            type="submit"
+            variant="primary"
+            size="lg"
+            block
+            :loading="verifying"
+            :disabled="!canVerify"
+          >
+            Verificar código
+          </AppButton>
+
+          <AppButton
+            variant="secondary"
+            block
+            type="button"
+            :disabled="verifying"
+            @click="leave"
+          >
+            Usar otra cuenta
+          </AppButton>
+        </form>
+
+        <p class="mt-4 text-xs leading-4 text-content-muted">
+          Sin el código no se puede acceder al panel. Si perdiste tu aplicación
+          de autenticación, necesitas recuperar la cuenta con el procedimiento
+          de Supabase.
+        </p>
+      </template>
+
+      <template v-else-if="noAccess">
         <h1 class="text-2xl font-semibold text-content">Sin acceso</h1>
         <p class="mt-2 text-base text-content-muted">
           Tu cuenta existe, pero no tiene acceso a este panel. Contacta al administrador.

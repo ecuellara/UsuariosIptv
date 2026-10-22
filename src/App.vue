@@ -43,6 +43,22 @@ watch(
     }
   },
 )
+
+/* Si el segundo factor pasa a estar pendiente con la app ya abierta (por
+   ejemplo tras una reautenticación), se abandona la ruta privada. El guard
+   también lo cubre, pero este watch evita pintar datos con un JWT aal1. */
+watch(
+  () => session.mfaPending,
+  (pending) => {
+    if (!pending || route.name === 'login') return
+    void router.replace({
+      name: 'login',
+      query: {
+        ...(route.fullPath === '/' ? {} : { redirect: route.fullPath }),
+      },
+    })
+  },
+)
 </script>
 
 <template>

@@ -90,6 +90,23 @@ const AUTH_MESSAGES: Record<string, string> = {
   over_request_rate_limit: 'Demasiados intentos. Espera un momento.',
   over_email_send_rate_limit: 'Demasiados intentos. Espera un momento.',
   same_password: 'La contraseña nueva debe ser distinta de la actual.',
+  /* MFA (TOTP). */
+  mfa_verification_failed:
+    'Código incorrecto. Revisa el código de tu aplicación e inténtalo de nuevo.',
+  invalid_totp:
+    'Código incorrecto. Revisa el código de tu aplicación e inténtalo de nuevo.',
+  mfa_challenge_expired: 'El código expiró. Vuelve a intentarlo.',
+  mfa_factor_not_found: 'No encontramos el segundo factor de esta cuenta.',
+  mfa_factor_name_conflict: 'Ya existe un factor con ese nombre.',
+  too_many_enrolled_mfa_factors:
+    'La cuenta ya tiene el máximo de factores de autenticación.',
+  mfa_totp_enroll_not_enabled:
+    'La verificación en dos pasos (TOTP) no está habilitada en Supabase Auth.',
+  mfa_totp_verify_not_enabled:
+    'La verificación de códigos TOTP no está habilitada en Supabase Auth.',
+  insufficient_aal:
+    'Necesitas verificar tu segundo factor para continuar.',
+  reauthentication_needed: 'Vuelve a iniciar sesión para continuar.',
 }
 
 const CONSTRAINT_MESSAGES: Record<string, string> = {

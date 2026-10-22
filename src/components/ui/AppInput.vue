@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { IconName } from './AppIcon.vue'
 import AppIcon from './AppIcon.vue'
 import FormField from './FormField.vue'
 
 const model = defineModel<string>({ default: '' })
+const input = ref<HTMLInputElement | null>(null)
 
 withDefaults(
   defineProps<{
@@ -49,6 +51,11 @@ withDefaults(
 )
 
 const emit = defineEmits<{ suffix: [] }>()
+
+defineExpose({
+  focus: (): void => input.value?.focus(),
+  select: (): void => input.value?.select(),
+})
 </script>
 
 <template>
@@ -74,6 +81,7 @@ const emit = defineEmits<{ suffix: [] }>()
         />
         <input
           :id="id"
+          ref="input"
           v-model="model"
           :type="type"
           :placeholder="placeholder"

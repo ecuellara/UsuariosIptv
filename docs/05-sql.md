@@ -4,7 +4,8 @@ Este documento describe **cómo se materializó** `docs/02-modelo-datos.md` en S
 aplica, cómo se verifica y qué quedó fuera de validación. La fuente de verdad del modelo sigue
 siendo `docs/02-modelo-datos.md`; si el SQL y ese documento discrepan, el SQL está mal.
 
-Fecha de la última ejecución verificada: **2026-10-21**. Motor de referencia del proyecto:
+Fecha de la última ejecución verificada: **2026-10-22** (migración `20261022090000` de MFA
+aplicada en local con `migration up --local`, sin reset). Motor de referencia del proyecto:
 PostgreSQL 17 (Supabase). Motores usados para validar: **PostgreSQL 18.6 sobre PGlite 0.5.11**
 (pruebas automáticas) y **PostgreSQL 17.11.0.004** (Supabase local, con
 `supabase migration up --local` sobre una base ya existente, sin reset).
@@ -26,6 +27,7 @@ supabase/
     20261021090500_rls_grants.sql   RLS, políticas y GRANT/REVOKE (§5)
     20261021090600_rpc.sql          las 7 RPC de §4
     20261021090700_reporting_views.sql  vistas de reporte agregadas (§11)
+    20261022090000_mfa_aal2.sql     is_admin() exige AAL2 si hay MFA verificado (§13)
   tests/
     t01_idempotencia_renovacion.sql
     t02_stock_insuficiente.sql
@@ -37,11 +39,13 @@ supabase/
     t08_escritura_denegada.sql
     t09_saldo_cuadra_libro.sql
     t10_reporting.sql               caja, rentabilidad, clientes y tokens
+    t11_mfa_aal2.sql                is_admin() y segundo factor (AAL2)
 tools/sqlcheck/
   run.mjs                           runner de pruebas (PGlite)
   mutate.mjs                        verifica que las pruebas detectan regresiones
   introspect.mjs                    utilidad: imprime vistas, firmas RPC y privilegios
-  harness/stub.sql                  roles + auth.users + auth.uid() (solo PGlite)
+  harness/stub.sql                  roles + auth.users + auth.uid() + auth.jwt() +
+                                    auth.mfa_factors (solo PGlite)
   harness/fixtures.sql              administrador de pruebas (solo PGlite)
 ```
 
@@ -56,7 +60,7 @@ supabase start          # levanta Postgres + Auth + Studio en local
 supabase db reset       # aplica migrations/ en orden y luego seed.sql
 ```
 
-`supabase db reset` es la verificación "desde cero": borra el volumen local, corre las ocho
+`supabase db reset` es la verificación "desde cero": borra el volumen local, corre las nueve
 migraciones en orden lexicográfico y después el seed.
 
 En un proyecto remoto:
@@ -104,15 +108,19 @@ Salida esperada (exit code 0):
 [PASS] supabase/tests/t02_stock_insuficiente.sql
 ...
 [PASS] supabase/tests/t10_reporting.sql
-RESULTADO: 10/10 pruebas OK
+[PASS] supabase/tests/t11_mfa_aal2.sql
+RESULTADO: 11/11 pruebas OK
 ```
 
 Decisiones del arnés de pruebas:
 
 - **Una base PGlite nueva por archivo de prueba.** Las pruebas no comparten estado y, de paso,
-  el DDL se aplica desde cero diez veces.
+  el DDL se aplica desde cero once veces.
 - `harness/stub.sql` crea los roles `anon` y `authenticated`, el esquema `auth`, `auth.users` y un
-  `auth.uid()` que lee `current_setting('request.jwt.claim.sub')`.
+  `auth.uid()` que lee `current_setting('request.jwt.claim.sub')`. Desde `t11` también crea
+  `auth.jwt()` (lee `request.jwt.claims`, devuelve `NULL` si no hay request) y el subconjunto de
+  `auth.mfa_factors` que consulta `is_admin()` (`user_id`, `status`), con RLS activa y sin
+  políticas como en producción.
 - `harness/fixtures.sql` inserta el administrador (usuario + `profiles`). Se ejecuta como dueño
   de las tablas, porque un rol sin fila en `profiles` no puede crear su propio perfil — y eso es
   exactamente lo que se quiere.
@@ -455,6 +463,17 @@ Se ejecutó SQL de verdad, pero en un entorno concreto. Lo que **no** está veri
 9. **Zona horaria de la base.** Las pruebas fuerzan `TimeZone = UTC` (como Supabase). Si alguien
    corre el SQL en una base con otro huso por defecto, todo lo que no usa `AT TIME ZONE`
    explícito podría cambiar de resultado. Las funciones y vistas lo usan siempre.
+10. **MFA no ejercitado contra GoTrue real.** `t11` valida la lógica de `is_admin()` con el stub
+    (`auth.jwt()` + `auth.mfa_factors`), pero el ciclo real de Supabase Auth —`mfa.enroll` →
+    `challenge` → `verify` → `unenroll`— y el cambio del claim `aal` en el token no se probaron
+    en esta entrega. Ver §13.6.
+11. **`is_admin()` depende de que su dueño lea `auth`.** La función es `SECURITY DEFINER` y su
+    dueño es `postgres`, que en la base local tiene `rolbypassrls = true` y por eso ve
+    `auth.mfa_factors` (RLS activa, sin políticas). Verificado en local leyendo `auth.users`
+    (RLS activa, sin políticas, filas visibles solo para el dueño). En el proyecto remoto hay que
+    repetir esa comprobación antes de confiar en la regla: si el dueño no pudiera leer los
+    factores, `row_security = off` haría fallar la función en vez de degradar el MFA en silencio
+    (ver §13.3).
 
 ---
 
@@ -506,6 +525,32 @@ seguro de automatizar. El patrón obligatorio a partir de ahora es **expand/cont
 2. Desplegar el código que usa lo nuevo.
 3. Migración *contract*: quitar lo viejo en una migración posterior, solo después de confirmar
    que nada lo usa.
+
+### 9.5 Rollback de `20261022090000` (MFA)
+
+Solo cambia el cuerpo de una función: no hay datos que perder ni backfill que deshacer. El
+rollback es volver a la definición de `20261021090300`:
+
+```sql
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles p where p.id = auth.uid()
+  );
+$$;
+
+delete from supabase_migrations.schema_migrations where version = '20261022090000';
+```
+
+Criterio de aborto: si tras aplicarla el administrador real con `aal1` y **sin** factores
+verificados obtiene `is_admin() = false`, se revierte de inmediato (§13.5). Un `false` en ese
+caso significa que la función no puede leer `auth.mfa_factors` o que los claims no llegan, no
+que el usuario no sea administrador.
 
 ---
 
@@ -717,3 +762,214 @@ Para `frontend-web`:
    `v_profit_monthly`, `v_customer_summary` y `v_token_summary` (§11). No sumar en TypeScript.
 6. Para `db-architect` en la Ola 3: prueba de concurrencia con dos conexiones reales y `EXPLAIN`
    con datos de volumen antes de tocar cualquier índice.
+
+---
+
+## 13. MFA: `is_admin()` exige AAL2 cuando hay segundo factor
+
+Migración `20261022090000_mfa_aal2.sql`, prueba `t11_mfa_aal2.sql`. **No** modifica firmas de
+RPC, políticas ni tablas: reemplaza el cuerpo de `is_admin()`, que es la única pregunta de
+autorización del panel. Todo lo que hoy depende de ella (§5) hereda la regla sin cambios.
+
+### 13.1 Definición
+
+```sql
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+set row_security = off
+as $$
+  select exists (
+           select 1 from public.profiles p where p.id = auth.uid()
+         )
+         and (
+           not exists (
+             select 1 from auth.mfa_factors f
+              where f.user_id = auth.uid() and f.status = 'verified'
+           )
+           or coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
+         );
+$$;
+```
+
+| Caso | Resultado |
+|---|---|
+| Sin factores verificados | `true` (con fila en `profiles`), sea `aal1` o `aal2` |
+| Con ≥1 factor `verified` y `aal1` | `false` |
+| Con ≥1 factor `verified` y `aal2` | `true` |
+| Solo factores `unverified` | `true` |
+| `auth.uid()` nulo | `false` |
+| `auth.jwt()` nulo con factor verificado | `false` (el `aal` ausente se trata como `aal1`) |
+
+`create or replace` conserva la ACL que puso `0006` (`authenticated` con `EXECUTE`, `anon` sin
+él); aun así la migración repite `revoke all … from public` y `grant execute … to authenticated`
+para que el estado quede explícito en el archivo.
+
+### 13.2 Por qué esos datos y no otros
+
+- **Factores desde `auth.mfa_factors`.** Es la fuente de verdad de GoTrue: el enrolamiento crea
+  ahí el factor y el challenge lo marca `verified`. Una tabla espejo en `public` habría que
+  mantenerla sincronizada desde el frontend y podría discrepar: una copia en "sin factor" con
+  GoTrue exigiendo TOTP convertiría el segundo factor en opcional sin que nadie lo notara. El
+  estado tiene que venir del servidor de auth, no del cliente.
+- **`aal` desde `auth.jwt()`.** El claim lo firma GoTrue; el cliente no puede fabricarlo. Es la
+  prueba de que **esta sesión** pasó el segundo factor, no solo de que el usuario lo tenga
+  enrolado. Un token `aal1` de un usuario con MFA vale lo mismo que una contraseña.
+- **`unverified` no cuenta.** Un enrolamiento a medias (QR escaneado, código nunca confirmado) no
+  puede dejar al administrador fuera del panel.
+- **Al borrar el último factor verificado** la rama `not exists` vuelve a ser cierta y basta
+  `aal1`: el requisito sigue el estado real, sin tocar la función.
+- **`auth.jwt()` nulo** (llamada interna sin request JWT) se trata como `aal1`. No rompe y, si el
+  usuario tiene factores, devuelve `false`. Es deliberado: las RPC se invocan siempre con JWT de
+  usuario y las pruebas de SQL fijan el claim explícitamente.
+
+### 13.3 RLS del esquema `auth` y por qué `row_security = off`
+
+`auth.mfa_factors` tiene RLS activa y **sin políticas**: solo la lee su dueño
+(`supabase_auth_admin`) o un rol con `BYPASSRLS`. `is_admin()` es `SECURITY DEFINER` y su dueño
+es `postgres`, que en la base local tiene `rolbypassrls = true` (verificado: `auth.users` tiene
+RLS activa sin políticas y sus filas son visibles para `postgres`). Además `authenticated` **no**
+tiene `SELECT` sobre `auth.mfa_factors` (verificado con `has_table_privilege`), así que el
+cliente no puede deducir el estado de MFA consultando la tabla: tiene que usar la API de auth.
+
+`set row_security = off` es una red de seguridad. Si en el proyecto remoto la función quedara
+en manos de un rol sin `BYPASSRLS`, la lectura devolvería 0 filas y el MFA pasaría a ser opcional
+**en silencio** (fail-open). Con `row_security = off` esa situación produce un error de política,
+es decir, el panel falla cerrado. No cambia nada en el caso normal: quien tiene `BYPASSRLS` no se
+ve afectado por el ajuste.
+
+### 13.4 Pruebas (`t11_mfa_aal2.sql`)
+
+Ocho verificaciones, todas ejecutadas como `authenticated` (camino real de RLS y privilegios),
+fijando `request.jwt.claim.sub` y `request.jwt.claims`:
+
+| # | Escenario | Esperado |
+|---|---|---|
+| 0 | `pg_proc`: `prosecdef`, `provolatile = 's'`, `search_path=public` | propiedades intactas |
+| 1 | sin factores, `aal1` | `true` |
+| 2 | factor `verified`, `aal1` | `false` |
+| 3 | factor `verified`, `aal2` | `true` |
+| 4 | factor `unverified`, `aal1` | `true` |
+| 5 | `auth.uid()` nulo | `false` |
+| 6 | factor `verified`, `auth.jwt()` nulo | `false` (no `null`, no error) |
+| 7 | usuario sin fila en `profiles`, `aal2` | `false` |
+| 8 | se borra el último factor verificado, `aal1` | `true` |
+
+El stub de PGlite (`tools/sqlcheck/harness/stub.sql`) se amplió con `auth.jwt()` (lee
+`request.jwt.claims`, `NULL` si no hay request) y `auth.mfa_factors` (`user_id`, `status`; RLS
+activa sin políticas, como producción). La RLS del stub es un canario: si `is_admin()` dejara de
+ser `SECURITY DEFINER`, la prueba 2 vería 0 factores y fallaría.
+
+Se comprobó que la prueba tiene dientes con dos mutaciones temporales de la migración nueva:
+`or true` en lugar del chequeo de `aal` → falla la prueba 2; quitar `security definer` → fallan
+las once pruebas (recursión de RLS sobre `profiles`). Ambas se revirtieron y la corrida final
+quedó en 11/11. `mutate.mjs` no se amplió: sigue cubriendo las ocho mutaciones de §3.1.
+
+### 13.5 Verificación en la base local (sin reset)
+
+1. `npx supabase@latest migration list --local` → `20261022090000` pendiente (las ocho previas ya
+   aplicadas).
+2. `npx supabase@latest migration up --local` → `{"applied":["...20261022090000_mfa_aal2.sql"]}`.
+   Sin `db reset`, sin `db push`, sin borrar datos.
+3. `pg_proc` tras aplicar: `prosecdef = t`, `provolatile = s`,
+   `proconfig = {search_path=public,row_security=off}`.
+4. Admin real (`admin@iptv.local`, 0 factores MFA): login por GoTrue → JWT con
+   `aal=aal1`, `role=authenticated`; `POST /rest/v1/rpc/is_admin` → `200` y `true`.
+   Sin token → `401`.
+5. `authenticated` no puede leer `auth.mfa_factors` (`has_table_privilege = false`), pero sí
+   ejecutar `is_admin()`; `anon` no puede ejecutarla.
+
+### 13.6 Contrato exacto para el frontend
+
+**Estado de la sesión.** La app decide con dos datos, no con `is_admin()`:
+
+```ts
+const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+// data.currentLevel: 'aal1' | 'aal2'   (lo que el token actual demuestra)
+// data.nextLevel:    'aal1' | 'aal2'   (lo que el usuario podría alcanzar)
+```
+
+| Situación | `currentLevel` / `nextLevel` | Qué hace el frontend |
+|---|---|---|
+| Sin MFA enrolado | `aal1` / `aal1` | Nada. El panel funciona normal. |
+| MFA enrolado, sesión recién logueada | `aal1` / `aal2` | Pantalla de código TOTP **antes** de cualquier consulta. No es "sin permisos". |
+| MFA superado en esta sesión | `aal2` / `aal2` | Panel normal. |
+
+**Qué se ve desde SQL mientras falta AAL2** (importante para no diagnosticar mal):
+
+- `SELECT` sobre tablas y vistas con RLS `using (is_admin())` → **0 filas**, no un error.
+- RPC → error `NO_AUTORIZADO` (SQLSTATE `42501`), según §4.4.
+- El estado es inmediato: `is_admin()` lee la tabla de factores en vivo, no espera a que expire
+  el token `aal1` que el usuario ya tenía.
+
+**Al enrolar** (`supabase.auth.mfa.enroll({ factorType: 'totp' })`):
+
+1. Devuelve un factor `unverified` + QR/secret. **No** se pide `aal2` y el panel sigue operativo
+   (`is_admin()` = `true`): un enrolamiento a medias no bloquea nada.
+2. El factor **no** protege hasta completar `mfa.challenge` + `mfa.verify` con el código de 6
+   dígitos. Si el usuario abandona aquí, queda `unverified` y no cambia el acceso.
+3. Si el código falla, el factor sigue `unverified`: no hay riesgo de autobloqueo por escanear el
+   QR.
+
+**Al verificar** (`mfa.challenge` → `mfa.verify`):
+
+1. GoTrue marca el factor `verified` y emite una sesión `aal2`. A partir de ese instante, la regla
+   se aplica a **todas** las sesiones `aal1` del usuario, incluidas las abiertas en otro
+   dispositivo: las consultas devuelven 0 filas y las RPC fallan con `NO_AUTORIZADO`.
+2. La app debe usar el token renovado que devuelve `verify` (Supabase JS lo actualiza en la
+   sesión). Si el cliente guarda el token por su cuenta, tiene que refrescarlo; un token viejo
+   `aal1` no sirve para el panel.
+3. Tras verificar, comprobar `getAuthenticatorAssuranceLevel().currentLevel === 'aal2'` antes de
+   cargar datos.
+
+**Al quitar el factor** (`supabase.auth.mfa.unenroll({ factorId })`):
+
+1. GoTrue exige una sesión `aal2` para desenrolar un factor **verificado**. Los factores
+   `unverified` (enrolamientos abandonados) se pueden eliminar en `aal1`, que es justo lo que
+   conviene hacer antes de volver a enrolar. La baja de un factor verificado se hace desde la
+   pantalla de MFA ya desafiada, no desde una sesión `aal1`.
+2. Al eliminar el **último** factor `verified`, `is_admin()` vuelve a bastar `aal1` de inmediato:
+   el panel funciona sin volver a iniciar sesión (`refreshSession()` si el cliente cachea el
+   token).
+3. Si quedan otros factores verificados, la exigencia de `aal2` se mantiene.
+4. **No hay códigos de recuperación** en este proyecto: si el admin pierde el dispositivo TOTP y
+   no tiene otro factor, la única salida es borrar la fila de `auth.mfa_factors` con
+   `service_role`/Studio. Es una decisión operativa pendiente (§13.8).
+
+**Errores que el frontend no debe confundir.** `is_admin() = false` significa "sin fila en
+`profiles`" **o** "falta AAL2". La UI distingue por `nextLevel === 'aal2' && currentLevel ===
+'aal1'`: eso es MFA pendiente, no falta de permisos. Nunca mostrar "no autorizado" en ese caso.
+
+### 13.7 Índices y rendimiento
+
+No se crea ningún índice. `auth.mfa_factors` ya tiene `mfa_factors_user_id_idx (user_id)`, que
+sirve exactamente al filtro `user_id = auth.uid() and status = 'verified'`; añadir otro sería
+duplicarlo sobre una tabla de auth que no es nuestra y que tiene 0–2 filas por administrador.
+
+Coste: `is_admin()` es `SECURITY DEFINER` (y tiene `SET`), así que el planner **no** la inlinea;
+en políticas RLS se evalúa con el resto del qual y hace dos búsquedas por clave (una en
+`profiles`, una en `mfa_factors`) por fila evaluada. Con el volumen de este panel (un
+administrador, un puñado de factores, miles de cuentas como máximo) es despreciable. **No hay
+`EXPLAIN` con volumen real**: si algún listado grande se degrada, la salida es medir y, si
+corresponde, envolver la llamada en las políticas (`(select public.is_admin())`), no tocar esta
+función.
+
+### 13.8 Limitaciones y pendientes
+
+1. **Ciclo MFA real no ejecutado**: no se enroló un factor en la base local para no alterar la
+   cuenta admin. El flujo `enroll → challenge → verify → unenroll` y el cambio de `aal` en el
+   token deben probarse cuando exista la pantalla de MFA (§8.10).
+2. **`docs/02-modelo-datos.md` §2 quedó desactualizado**: sigue diciendo
+   "`is_admin()` = existe fila en `profiles`". Hay que actualizarlo a la regla de §13.1 (no se
+   tocó en esta entrega por alcance).
+3. **`BYPASSRLS` en remoto sin verificar** (§8.11). Comprobación previa al `db push`:
+   `select rolbypassrls from pg_roles where rolname = 'postgres';` y
+   `select count(*) from auth.mfa_factors;` como `postgres`.
+4. **Sin códigos de recuperación** ni segundo factor de respaldo. Riesgo de bloqueo si se pierde
+   el dispositivo. Decisión pendiente para `backend-api`/`frontend-web`.
+5. **Sin invalidación forzada de sesiones**: al enrolar y verificar, los tokens `aal1` ya emitidos
+   caducan por su cuenta (1 h por defecto). No es un agujero — `is_admin()` los rechaza igual —,
+   pero el refresh token sigue vivo hasta que caduque o se revoque.

@@ -319,3 +319,39 @@ almacenamiento externo (S3/R2/BitLocker) antes de que expire.
 
 El `toc.txt` que acompaña al artefacto lista objetos del esquema (sin datos) y sirve para
 comprobar qué contiene el backup sin descifrarlo.
+
+---
+
+## 12. Ejecución real (2026-10-22) — Cloudflare Workers con assets
+
+La cuenta de Cloudflare ya no crea proyectos Pages clásicos desde la CLI: `wrangler pages project create`
+publica un **Worker con assets**, que es la versión actual de Pages. Por eso el despliegue se hace con
+`wrangler deploy` y `wrangler.jsonc` (no con `pages deploy`).
+
+| Dato | Valor |
+|---|---|
+| Cuenta | `Ecuellar.izipay@gmail.com's Account` (`9248e78d8903b595523dbdb7c48c4b01`) |
+| Worker / proyecto | `iptv-manager` |
+| URL de producción | `https://iptv-manager.iptv-manager.workers.dev` |
+| Config | `wrangler.jsonc` → `assets.directory = ./dist`, fallback SPA |
+| Site URL en Supabase Auth | la misma URL de producción |
+
+### Comando de despliegue
+
+```powershell
+$env:VITE_SUPABASE_URL='https://undqtctcckdfycdeknus.supabase.co'
+$env:VITE_SUPABASE_ANON_KEY='sb_publishable_...'
+npm run build
+npx wrangler@latest deploy
+```
+
+### Trampa encontrada
+
+Un `npm run build` de desarrollo (o el que ejecuta un agente para validar) **sobrescribe `dist/`**
+sin las variables de producción. Si se despliega ese `dist`, la app arranca con
+«Falta la configuración de Supabase». Antes de cada deploy, verifica:
+
+```powershell
+Select-String -Path dist\assets\*.js -Pattern 'undqtctcckdfycdeknus' -Quiet   # True
+Select-String -Path dist\assets\*.js -Pattern 'missing-anon-key' -Quiet       # False
+```
