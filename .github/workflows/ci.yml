@@ -1,0 +1,146 @@
+# =============================================================================
+# CI de IPTV Manager
+# -----------------------------------------------------------------------------
+# Qué valida: secretos, tipos, lint, tests, build de producción (con variables
+#   dummy), guardas del bundle y las 10 pruebas SQL sobre PGlite.
+# Qué NO hace: desplegar ni aplicar migraciones. El despliegue es manual y está
+#   documentado en docs/07-deploy.md.
+#
+# Variables: este workflow usa SOLO placeholders. Nunca service_role, nunca
+#   claves reales. El build de CI no habla con Supabase: solo compila.
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+  # Placeholders válidos para compilar. NO son credenciales del proyecto real.
+  VITE_SUPABASE_URL: 'https://ci-placeholder.supabase.co'
+  VITE_SUPABASE_ANON_KEY: 'sb_publishable_ci_placeholder_000000000000000000000'
+
+jobs:
+  verify:
+    name: Verificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout (historial completo para gitleaks)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Fallo rápido: si hay un secreto en el repo o en el historial, no tiene
+      # sentido gastar 5 minutos compilando.
+      - name: Escaneo de secretos (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # En repositorios de organización gitleaks exige licencia; en cuentas
+          # personales el secreto puede no existir y la acción funciona igual.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tools/sqlcheck/package-lock.json
+
+      - name: Instalar dependencias (npm ci)
+        run: npm ci
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitarios
+        run: npm run test
+
+      - name: Build de producción (variables dummy)
+        run: npm run build
+
+      # El build con placeholders debe inyectarlos: si Vite no los ve, el
+      # dist/ sale apuntando al fallback local y el deploy queda inservible.
+      - name: Guardas del bundle
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+
+          # OJO: @supabase/supabase-js incluye el literal `sb_secret_` para detectar
+          # el tipo de clave. La guarda busca una clave real (prefijo + valor),
+          # no la constante de la librería.
+          if grep -rIEo --exclude='*.map' 'sb_secret_[A-Za-z0-9_-]{16,}' dist; then
+            echo "::error::dist contiene una secret key de Supabase. Abortando."
+            exit 1
+          fi
+          if grep -rIl --exclude='*.map' -e 'service_role' dist; then
+            echo "::error::dist referencia service_role. Abortando."
+            exit 1
+          fi
+          echo "OK: dist sin secret keys ni service_role"
+
+          if ! grep -rqF "$VITE_SUPABASE_URL" dist; then
+            echo "::error::dist no contiene VITE_SUPABASE_URL; el build no recibió las variables."
+            exit 1
+          fi
+          echo "OK: dist contiene la URL de Supabase inyectada en build"
+
+          if ! grep -rqF "$VITE_SUPABASE_ANON_KEY" dist; then
+            echo "::error::dist no contiene VITE_SUPABASE_ANON_KEY; el build no recibió las variables."
+            exit 1
+          fi
+          echo "OK: dist contiene la publishable key inyectada en build"
+
+      - name: Dependencias del validador SQL
+        run: npm ci --prefix tools/sqlcheck
+
+      - name: SQL check (PGlite, sin Docker)
+        run: node tools/sqlcheck/run.mjs
+
+      # No bloquea: si el registry falla o hay avisos, queda como warning en el
+      # resumen del job. Un CVE real se ve en el summary y se atiende aparte.
+      - name: Audit de dependencias de producción (no bloqueante)
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=high > audit.txt 2>&1
+          code=$?
+          cat audit.txt
+          {
+            echo "### npm audit (--omit=dev --audit-level=high)"
+            if [ "$code" -eq 0 ]; then
+              echo ""
+              echo "Sin vulnerabilidades altas/críticas en dependencias de producción."
+            else
+              echo ""
+              echo "⚠️ Warning no bloqueante (código $code): revisar el reporte o la conectividad con el registry."
+              echo ""
+              echo '```'
+              head -60 audit.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Publicar dist como artefacto (7 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+          retention-days: 7
+          if-no-files-found: error

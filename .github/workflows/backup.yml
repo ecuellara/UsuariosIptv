@@ -1,0 +1,172 @@
+# =============================================================================
+# Backup diario de la base de datos (Supabase free: sin backups ni PITR)
+# -----------------------------------------------------------------------------
+# pg_dump -Fc  ->  verificación (tamaño + TOC legible)  ->  cifrado con age
+# -> artefacto privado de GitHub Actions con retención de 30 días.
+#
+# El dump NO se sube en claro. Si un paso falla, no se sube nada.
+#
+# Secretos requeridos (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_DB_PASSWORD    contraseña de la base (Settings -> Database)
+#   BACKUP_AGE_PUBLIC_KEY   clave pública age (age1...). La privada NO va aquí.
+#
+# Restauración y registro: docs/07-deploy.md §5 y docs/backups.md.
+# =============================================================================
+name: Backup base de datos
+
+on:
+  schedule:
+    # 07:00 UTC = 02:00 America/Lima (UTC-5, sin horario de verano).
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  PGHOST: aws-0-us-east-1.pooler.supabase.com
+  PGPORT: '5432'
+  PGUSER: postgres.undqtctcckdfycdeknus
+  PGDATABASE: postgres
+  PGSSLMODE: require
+  PGCONNECT_TIMEOUT: '30'
+  # Baseline medido el 2026-10-21: 408.463 bytes con datos reales.
+  # 50 KB es ~12 % del baseline: detecta dumps vacíos o truncados sin fallar
+  # por un esquema legítimamente más pequeño.
+  MIN_DUMP_BYTES: '50000'
+  MIN_TOC_ENTRIES: '40'
+
+jobs:
+  dump:
+    name: Dump cifrado
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar secretos requeridos
+        env:
+          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -u
+          missing=0
+          if [ -z "${DB_PASSWORD}" ]; then
+            echo "::error::Falta el secreto SUPABASE_DB_PASSWORD (Settings -> Database -> password)."
+            missing=1
+          fi
+          if [ -z "${AGE_PUBLIC_KEY}" ]; then
+            echo "::error::Falta el secreto BACKUP_AGE_PUBLIC_KEY. Genera el par con: age-keygen -o key.txt"
+            missing=1
+          elif ! printf '%s' "${AGE_PUBLIC_KEY}" | grep -qE '^age1[0-9a-z]+$'; then
+            echo "::error::BACKUP_AGE_PUBLIC_KEY no parece una clave pública age (debe empezar por age1)."
+            missing=1
+          fi
+          exit "$missing"
+
+      # Ubuntu 24.04 trae postgresql-client-16; el proyecto Supabase corre
+      # PostgreSQL 17 y pg_dump se niega a volcar versiones mayores. Se instala
+      # el cliente 17 del repositorio oficial PGDG.
+      - name: Instalar postgresql-client-17 y age
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-17 age
+          pg_dump --version
+          age --version
+
+      - name: pg_dump + verificación + cifrado
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          mkdir -p backup
+          RAW="backup/iptv-${STAMP}.dump"
+          ENC="${RAW}.age"
+
+          echo "pg_dump contra ${PGHOST}:${PGPORT} como ${PGUSER} (base ${PGDATABASE})"
+          pg_dump --no-owner --no-privileges --format=custom --file="$RAW"
+
+          # 1) El dump no puede estar vacío ni truncado.
+          bytes="$(stat -c %s "$RAW")"
+          echo "Tamaño del dump: ${bytes} bytes (mínimo ${MIN_DUMP_BYTES})"
+          if [ "$bytes" -lt "$MIN_DUMP_BYTES" ]; then
+            echo "::error::Dump sospechosamente pequeño: ${bytes} < ${MIN_DUMP_BYTES} bytes."
+            exit 1
+          fi
+
+          # 2) pg_restore debe poder leer el archivo (custom format íntegro).
+          pg_restore --list "$RAW" > backup/toc.txt
+          entries="$(grep -cE '^[0-9]+;' backup/toc.txt || true)"
+          echo "Entradas en el TOC: ${entries} (mínimo ${MIN_TOC_ENTRIES})"
+          if [ "$entries" -lt "$MIN_TOC_ENTRIES" ]; then
+            echo "::error::El TOC tiene ${entries} entradas; el dump no parece completo."
+            exit 1
+          fi
+
+          # 3) Debe estar el núcleo del modelo, no solo un esquema vacío.
+          for t in renewals payments token_stock token_movements audit_log; do
+            if ! grep -q " TABLE public ${t} " backup/toc.txt; then
+              echo "::error::El dump no contiene la tabla public.${t}."
+              exit 1
+            fi
+          done
+          echo "OK: pg_restore lee el dump y contiene las tablas del núcleo."
+
+          # 4) Cifrado obligatorio antes de salir del runner.
+          age --encrypt --recipient "$AGE_PUBLIC_KEY" --output "$ENC" "$RAW"
+          shred -u "$RAW" 2>/dev/null || rm -f "$RAW"
+
+          # 5) Verificación mínima del contenedor cifrado.
+          if ! head -c 30 "$ENC" | grep -q 'age-encryption.org/v1'; then
+            echo "::error::El archivo cifrado no tiene cabecera age."
+            exit 1
+          fi
+          enc_bytes="$(stat -c %s "$ENC")"
+          echo "Backup cifrado: ${ENC} (${enc_bytes} bytes)"
+          echo "BACKUP_FILE=${ENC}" >> "$GITHUB_ENV"
+          {
+            echo "### Backup de base de datos"
+            echo ""
+            echo "| Dato | Valor |"
+            echo "|---|---|"
+            echo "| Archivo | \`${ENC}\` |"
+            echo "| Dump en claro | ${bytes} bytes (borrado tras cifrar) |"
+            echo "| Cifrado | ${enc_bytes} bytes, age |"
+            echo "| Entradas TOC | ${entries} |"
+            echo "| Host | ${PGHOST}:${PGPORT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar artefacto cifrado (30 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: |
+            backup/*.dump.age
+            backup/toc.txt
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Resumen de fallo
+        if: failure()
+        run: |
+          {
+            echo "### ❌ Backup fallido"
+            echo ""
+            echo "No se publicó ningún artefacto. Revisa los pasos anteriores y, si el error es de conexión, verifica la contraseña y que el proyecto Supabase esté activo (el free plan se pausa por inactividad)."
+          } >> "$GITHUB_STEP_SUMMARY"
