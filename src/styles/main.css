@@ -612,11 +612,17 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background-color: var(--color-surface);
-    overflow: hidden;
+    /* El contenedor nunca recorta columnas: si la tabla no cabe, se desplaza
+       en horizontal. La columna de acciones queda fija a la derecha. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .dt {
     width: 100%;
+    min-width: 100%;
     border-collapse: collapse;
     text-align: left;
   }
@@ -635,6 +641,25 @@
     white-space: nowrap;
   }
 
+  /* Acciones: sticky a la derecha, fondo opaco y sombra de separación para
+     que se entienda que hay más tabla detrás. El fondo debe ser opaco: si no,
+     el contenido que pasa por debajo se transparenta. */
+  .dt thead th.dt-col-actions,
+  .dt tbody td.dt-col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background-color: var(--color-surface);
+    box-shadow:
+      inset 1px 0 0 var(--color-border),
+      -10px 0 12px -12px var(--color-border-strong);
+  }
+
+  .dt thead th.dt-col-actions {
+    z-index: 3;
+    background-color: var(--color-surface-sunken);
+  }
+
   .dt tbody tr {
     border-top: 1px solid var(--color-border);
     height: var(--row-h);
@@ -646,6 +671,11 @@
   }
 
   .dt tbody tr[data-interactive='true']:hover {
+    background-color: var(--color-surface-hover);
+  }
+
+  /* La celda sticky tiene fondo propio; se tiñe junto con la fila. */
+  .dt tbody tr[data-interactive='true']:hover td.dt-col-actions {
     background-color: var(--color-surface-hover);
   }
 
@@ -685,6 +715,16 @@
 
   /* Conversión tabla → tarjeta (≤640 px de contenedor). Marcado único. */
   @container (max-width: 639px) {
+    /* En tarjetas no hay desplazamiento horizontal ni columna fija. */
+    .dt thead th.dt-col-actions,
+    .dt tbody td.dt-col-actions {
+      position: static;
+      right: auto;
+      z-index: auto;
+      background-color: transparent;
+      box-shadow: none;
+    }
+
     .dt thead {
       position: absolute;
       width: 1px;
@@ -727,6 +767,17 @@
     .dt tbody td {
       padding: 0;
       grid-column: 1 / -1;
+    }
+
+    /* En la tarjeta cada importe declara qué es; sin esto se apilan cifras
+       sueltas que solo tienen sentido con la cabecera de la tabla. */
+    .dt tbody td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: var(--space-1);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      color: var(--color-text-muted);
     }
 
     .dt tbody td.dt-card-start {

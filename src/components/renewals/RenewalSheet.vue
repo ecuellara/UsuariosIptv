@@ -516,6 +516,7 @@ function invalidateAll(): void {
   void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
   void queryClient.invalidateQueries({ queryKey: queryKeys.renewals.all })
   void queryClient.invalidateQueries({ queryKey: queryKeys.tokens.all })
+  void queryClient.invalidateQueries({ queryKey: queryKeys.finance.all })
 }
 
 async function chargeRenewal(renewalId: string): Promise<void> {

@@ -164,6 +164,7 @@ async function save(): Promise<void> {
       )}.`,
     })
     await queryClient.invalidateQueries({ queryKey: queryKeys.renewals.all })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.finance.all })
     await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     open.value = false
     emit('saved')

@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppSkeleton from '@/components/ui/AppSkeleton.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import RecordPaymentModal from '@/components/renewals/RecordPaymentModal.vue'
-import { useToast } from '@/composables/useToast'
+import RenewalReverseDialog from '@/components/renewals/RenewalReverseDialog.vue'
 import { formatDateTime } from '@/lib/dates'
 import { formatMoney, formatTokens } from '@/lib/format'
-import { toUserMessage } from '@/lib/errors'
 import { queryKeys } from '@/lib/query-keys'
-import { createIdempotencyKey, reverseRenewal } from '@/services/rpc'
 import { listRenewalsByAccount } from '@/services/renewals'
 import type { RenewalSummary } from '@/types/domain'
 
@@ -22,9 +19,6 @@ import type { RenewalSummary } from '@/types/domain'
 
 const props = defineProps<{ accountId: string }>()
 const emit = defineEmits<{ changed: [] }>()
-
-const queryClient = useQueryClient()
-const toast = useToast()
 
 const renewalsQuery = useQuery({
   queryKey: computed(() => queryKeys.renewals.byAccount(props.accountId)),
@@ -36,9 +30,6 @@ const renewals = computed(() => renewalsQuery.data.value ?? [])
 
 const reverseOpen = ref(false)
 const reverseTarget = ref<RenewalSummary | null>(null)
-const reverseLoading = ref(false)
-const reverseError = ref<string | null>(null)
-const reverseKey = ref('')
 
 const paymentOpen = ref(false)
 const paymentTarget = ref<RenewalSummary | null>(null)
@@ -52,48 +43,14 @@ function onPaymentSaved(): void {
   void renewalsQuery.refetch()
 }
 
-const reverseBody = computed(() => {
-  const renewal = reverseTarget.value
-  if (!renewal) return ''
-  const tokens =
-    renewal.tokensUsed > 0
-      ? `Se devolverán ${formatTokens(renewal.tokensUsed)} al inventario al costo congelado. `
-      : 'Esta renovación no consumió tokens. '
-  const expiration = renewal.previousExpiration
-    ? `El vencimiento de la cuenta volverá a ${formatDateTime(renewal.previousExpiration)}. `
-    : 'La cuenta volverá a su vencimiento inicial. '
-  return `${tokens}${expiration}Los pagos no se borran: quedan en la caja como un hecho histórico.`
-})
-
 function openReverse(renewal: RenewalSummary): void {
   reverseTarget.value = renewal
-  reverseKey.value = createIdempotencyKey()
-  reverseError.value = null
   reverseOpen.value = true
 }
 
-async function confirmReverse(reason: string): Promise<void> {
-  const renewal = reverseTarget.value
-  if (!renewal || reverseLoading.value) return
-  reverseLoading.value = true
-  reverseError.value = null
-  try {
-    await reverseRenewal(renewal.id, reason, reverseKey.value)
-    toast.success('Renovación revertida', {
-      description:
-        'Los tokens volvieron al inventario y el vencimiento anterior quedó restaurado.',
-    })
-    reverseOpen.value = false
-    await queryClient.invalidateQueries({ queryKey: queryKeys.renewals.all })
-    await queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
-    await queryClient.invalidateQueries({ queryKey: queryKeys.tokens.all })
-    await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    emit('changed')
-  } catch (error) {
-    reverseError.value = toUserMessage(error, 'No se pudo revertir la renovación.')
-  } finally {
-    reverseLoading.value = false
-  }
+function onReversed(): void {
+  void renewalsQuery.refetch()
+  emit('changed')
 }
 </script>
 
@@ -261,17 +218,10 @@ async function confirmReverse(reason: string): Promise<void> {
       El margen no descuenta gastos generales: es acordado − costo de tokens.
     </p>
 
-    <ConfirmDialog
+    <RenewalReverseDialog
       v-model:open="reverseOpen"
-      title="Revertir renovación"
-      :body="reverseBody"
-      confirm-label="Revertir renovación"
-      :destructive="true"
-      :require-reason="true"
-      reason-label="Motivo de la reversión"
-      :loading="reverseLoading"
-      :error="reverseError"
-      @confirm="confirmReverse"
+      :renewal="reverseTarget"
+      @reversed="onReversed"
     />
 
     <RecordPaymentModal

@@ -11,6 +11,8 @@ export const queryKeys = {
     metrics: (customerFree?: boolean) =>
       ['dashboard', 'metrics', customerFree ?? true] as const,
     cash: (monthKey: string) => ['dashboard', 'cash', monthKey] as const,
+    cashMonthly: (monthKey: string) =>
+      ['dashboard', 'cash-monthly', monthKey] as const,
   },
   accounts: {
     all: ['accounts'] as const,
@@ -50,5 +52,15 @@ export const queryKeys = {
     summary: ['tokens', 'summary'] as const,
     purchases: ['tokens', 'purchases'] as const,
     movements: ['tokens', 'movements'] as const,
+  },
+  finance: {
+    all: ['finance'] as const,
+    cash: (monthKey: string) => ['finance', 'cash', monthKey] as const,
+    profit: (monthKey: string) => ['finance', 'profit', monthKey] as const,
+    expenses: (monthKey: string) => ['finance', 'expenses', monthKey] as const,
+  },
+  payments: {
+    byRenewal: (renewalId: string) =>
+      ['payments', 'renewal', renewalId] as const,
   },
 }

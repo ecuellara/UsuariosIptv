@@ -36,7 +36,7 @@ Nunca se publica `service_role` en el bundle ni en variables `VITE_*`.
 | `npm run build` | Build estático en `dist/` (apto para Cloudflare Pages) |
 | `npm run typecheck` | `vue-tsc --noEmit` |
 | `npm run lint` | ESLint 10 (flat config) sobre `src` y configs |
-| `npm run test` | Vitest: formato de dinero/fechas, teléfono, errores, texto |
+| `npm run test` | Vitest: formato de dinero/fechas, teléfono, errores, texto, CSV y meses |
 | `npm run gen:types` | Regenera `src/types/database.ts` desde Supabase local |
 
 `src/types/database.ts` es **generado** (`supabase gen types`); no se edita a mano ni se lintea.
@@ -62,6 +62,8 @@ src/
     errors.ts              traducción de errores a español (prefijos RPC, Auth, constraints)
     format.ts              dinero S/, teléfono, tokens, estados, relativos (re-exporta fechas)
     dates.ts               America/Lima: formato, rangos de mes/día, ISO ↔ hora de Lima
+    finance.ts             claves/labels de mes, rango de gastos y resta de caja
+    csv.ts                 generador CSV mínimo (escape + descarga)
     text.ts                búsqueda saneada, iniciales, wa.me
     mappers.ts             fila de vista/tabla → entidad de dominio (falla si falta un dato)
     query-client.ts        QueryClient + retry + handler de 401
@@ -72,6 +74,8 @@ src/
     plans.ts               planes, app_settings y token_stock (lectura)
     dashboard.ts           métricas (COUNT de SQL) y movimientos de caja
     cash.ts                v_cash_movements (solo lectura)
+    finance.ts             v_cash_monthly, v_profit_monthly y gastos (CRUD auditado)
+    payments.ts            pagos de una renovación (solo lectura)
     profile.ts             profiles.display_name
     rpc.ts                 wrappers tipados de las 7 RPC + account_status/add_months
   stores/
@@ -92,12 +96,14 @@ src/
     customers/             CustomerFormModal (vee-validate + zod)
     accounts/              AccountFormSheet, AccountDetailSheet, CorrectExpirationModal,
                            AccountRenewalHistory, AccountActionsHost (estado y mutaciones)
-    renewals/              RenewalSheet (flujo crítico), RecordPaymentModal
+    renewals/              RenewalSheet (flujo crítico), RecordPaymentModal,
+                           RenewalDetailSheet, RenewalReverseDialog
+    finance/               ExpenseFormModal (alta/edición de gastos)
     tokens/                PurchaseTokensModal, AdjustTokensModal
     settings/              PlanRowEditor
   views/
     LoginView, DashboardView, CustomersView, CustomerDetailView, AccountsView,
-    RenewalsView, TokensView, SettingsView, ModulePendingView (seguimiento/finanzas),
+    RenewalsView, TokensView, FinanceView, SettingsView, ModulePendingView (seguimiento),
     ForbiddenView, NotFoundView
   lib/*.test.ts            pruebas unitarias
 ```
@@ -124,10 +130,10 @@ src/
 ### Nota de arquitectura: totales de caja
 
 PostgREST de este proyecto tiene las funciones de agregación deshabilitadas (`PGRST123`) y el
-modelo ya incluye `v_cash_monthly` (ingresos, egresos y neto por mes). El dashboard del slice 1
-sigue **listando** los movimientos del mes porque el total se mostrará en Finanzas (2B); el
-navegador nunca suma importes. `token_purchases` de la vista es informativo: ya está dentro de
-`outflow` y no se suma aparte.
+modelo incluye `v_cash_monthly` (ingresos, egresos y neto por mes). El dashboard muestra el
+**neto del mes actual** leído de esa vista; la lista de movimientos del mes sigue siendo
+informativa y el navegador nunca suma importes. `token_purchases` de la vista es informativo: ya
+está dentro de `outflow` y no se suma aparte. El detalle completo vive en `/finanzas`.
 
 ---
 
@@ -153,8 +159,8 @@ navegador nunca suma importes. `token_purchases` de la vista es informativo: ya 
    tarjetas a ≤640 px de contenedor: no se duplica el marcado.
 3. Acciones de una cuenta: `AccountActionsHost` (expone `openDetail`, `openCreate`, `openEdit`).
    Evita abrir un sheet desde otro sheet: se cierra uno y se abre el siguiente.
-4. El DatePicker dentro de un modal/sheet se portaliza al propio diálogo para seguir siendo
-   clickeable y accesible.
+4. El DatePicker y el Select dentro de un modal/sheet se portalizan al propio diálogo para seguir
+   siendo clickeables y accesibles (el layer modal bloquea el resto del body).
 5. Filtros: `AppSegmentedFilter` (`aria-pressed`) para rangos; `AppSelect` para estados.
    No se usan tabs falsos sin `tabpanel`.
 6. Formularios nuevos: `useForm` + `toTypedSchema(zod)` + `defineField` (referencia:
@@ -166,10 +172,10 @@ navegador nunca suma importes. `token_purchases` de la vista es informativo: ya 
 
 ### Rutas
 
-`/renovaciones` y `/tokens` ya están implementadas. `/seguimiento` y `/finanzas` siguen con
-`ModulePendingView` y `meta.pending`; al implementarlas, se reemplaza el componente y se quita
-`pending` del meta. La navegación (`router/navigation.ts`) ya las incluye con la etiqueta «Pronto»;
-al activarlas, quitar `soon: true`.
+`/renovaciones`, `/tokens` y `/finanzas` ya están implementadas. `/seguimiento` sigue con
+`ModulePendingView` y `meta.pending`; al implementarla, se reemplaza el componente y se quita
+`pending` del meta. La navegación (`router/navigation.ts`) ya la incluye con la etiqueta «Pronto»;
+al activarla, quitar `soon: true`. Finanzas ya no lleva `soon`.
 
 ### Renovaciones y tokens (slice 2A)
 
@@ -204,18 +210,54 @@ al activarlas, quitar `soon: true`.
 8. **Errores de servidor.** Siempre `toUserMessage()`; el detalle técnico no se pinta. El sheet
    permanece abierto para corregir y reintentar con los mismos valores.
 
+### Finanzas y gastos (slice 2B)
+
+1. **Dos bloques separados.** `/finanzas` muestra **Caja del mes** (`v_cash_monthly`) y
+   **Rentabilidad del mes** (`v_profit_monthly`). No se mezclan ni se suman en el navegador.
+   El selector ofrece el mes actual de Lima y los 11 anteriores.
+2. **Caja.** `income` es lo cobrado; `outflow` incluye `token_purchases`; `net` se lee tal cual.
+   «Gastos operativos» es la única resta de dos escalares SQL (`outflow − token_purchases`) y se
+   hace en `lib/finance.ts` con prueba unitaria, no agregando filas. La compra de tokens se
+   muestra aparte como informativa.
+3. **Rentabilidad.** `agreed_revenue`, `token_cost`, `operating_expenses` y `gross_margin` vienen
+   de la vista. Si no hay fila, el bloque muestra ceros con «Sin operaciones en el mes»; no es un
+   error. Las compras de tokens no aparecen en `operating_expenses` (ADR-005).
+4. **Gastos.** `expenses` es la única tabla de dinero con escritura directa (política de admin y
+   trigger `expenses_audit`). Categorías: `OPERATIVO`, `PUBLICIDAD`, `HERRAMIENTAS`, `OTRO`; nunca
+   tokens. Eliminar exige confirmación y advierte que queda auditado.
+5. **CSV.** Se genera desde las filas ya traídas (`lib/csv.ts`), con `;` y BOM UTF-8. El resumen
+   escribe los mismos valores de pantalla; el listado de gastos, lo que devolvió la consulta.
+   No hay librerías de CSV ni de gráficos.
+6. **Dashboard.** La tarjeta de caja muestra `net` del mes desde `v_cash_monthly`; «Registrar
+   gasto» abre `ExpenseFormModal`; la tarjeta de tokens usa `v_token_summary` (saldo, costo
+   promedio y valor de inventario).
+
+### Clientes y renovaciones (slice 2B)
+
+1. **Clientes.** El listado se pagina y busca en el servidor sobre `v_customer_summary` y muestra
+   cuentas activas/total, próximo vencimiento, peor estado y última renovación. `worst_status`
+   nulo se pinta «—» (sin cuentas activas). Editar un cliente pide la fila completa porque la
+   vista no trae `notes`.
+2. **Detalle de renovación.** Clic en una fila abre `RenewalDetailSheet` con snapshot, fechas,
+   pagos asociados y acciones. `RecordPaymentModal` y `RenewalReverseDialog` son los mismos del
+   historial de la cuenta: no hay dos copias del cobro ni de la reversión.
+3. **Revertida con cobro.** Si `is_reversed && amount_paid > 0`, el listado muestra el badge «Cobro
+   sin renovación vigente» (tooltip accesible) y el diálogo de reversión advierte: «Esta renovación
+   tiene cobros por S/ X. La reversión no devuelve el dinero.». El pago se conserva y sigue en caja.
+4. **Tablas.** `DataTable` permite scroll horizontal, deja la columna de acciones sticky a la
+   derecha en escritorio (fondo opaco + separación) y mantiene la conversión a tarjetas a ≤640 px
+   de contenedor. Las celdas con `mobileLabel` muestran su etiqueta en la tarjeta.
+
 ---
 
 ## 5. Pendientes y riesgos conocidos
 
 | # | Pendiente | Impacto | Quién |
 |---|---|---|---|
-| 1 | Totales de caja en el dashboard | El rail sigue listando movimientos; `v_cash_monthly` ya existe y se usará en Finanzas (2B) | `frontend-web` (2B) |
-| 2 | Agregados por cliente en el listado | `v_customer_summary` ya existe; el listado aún no muestra activas/próximo vencimiento | `frontend-web` (2B) |
-| 3 | Seguimiento y Finanzas | Siguen en `ModulePendingView`; Renovaciones y Tokens ya están implementados | `frontend-web` (2B) |
-| 4 | Pruebas E2E en el repo | La verificación visual se hizo con Playwright sobre Chrome local, fuera del repo | `testing-e2e` |
-| 5 | Exportación CSV y plantillas de WhatsApp | No están en el alcance del slice 1 | slice 2 |
-| 6 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
+| 1 | Seguimiento y WhatsApp | `/seguimiento` sigue en `ModulePendingView`; contact_logs y templates esperan la 2B-2 | `frontend-web` (2B-2) |
+| 2 | Pruebas E2E en el repo | La verificación visual se hizo con Playwright sobre Chrome local, fuera del repo | `testing-e2e` |
+| 3 | Plantillas de WhatsApp | No están en el alcance de la 2B | 2B-2 |
+| 4 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
 
 ### Desviaciones conscientes del documento de diseño
 
@@ -230,6 +272,11 @@ al activarlas, quitar `soon: true`.
 Durante la verificación se crearon clientes y cuentas de prueba **desde la UI y la API** y se
 **archivaron** al terminar (no se borró ninguna fila). El seed original no trae clientes.
 
+En la verificación 2B se creó un gasto de prueba para demostrar el efecto en caja/margen y se
+**eliminó** al terminar (acción permitida y auditada). La tabla `expenses` quedó con 0 filas; en
+`audit_log` permanecen los eventos `EXPENSE_CREATED`, `EXPENSE_UPDATED` y `EXPENSE_DELETED` de
+esa prueba. No se tocó ninguna renovación, pago ni token.
+
 ---
 
 ## 6. Verificación ejecutada
@@ -237,11 +284,17 @@ Durante la verificación se crearon clientes y cuentas de prueba **desde la UI y
 ```bash
 npm run typecheck   # sin salida = sin errores
 npm run lint        # sin salida = sin errores
-npm run test        # 25 pruebas en 3 archivos
+npm run test        # 39 pruebas en 5 archivos
 npm run build       # dist/ generado (incluye robots.txt)
 ```
 
 Verificación funcional del slice 2A (Supabase local + Playwright/Chrome): compra de tokens,
 renovación con cobro, doble envío con la misma clave, reversión, stock insuficiente, éxito
 parcial con reintento del cobro, cobro posterior, alta/edición de cuenta con vee-validate y
-sheet a 1440/768/375 px. El detalle y los números están en el informe de la entrega.
+sheet a 1440/768/375 px.
+
+Verificación del slice 2B: tablas a 1024/1280/1440 (acciones sticky y alcanzables, con
+`scrollWidth` > `clientWidth` cuando no caben) y tarjetas a 375; alta, edición y eliminación de
+gasto con `v_cash_monthly`/`v_profit_monthly` antes y después; exportación CSV; detalle de
+renovación con pagos y aviso de reversión con cobro; clientes con agregados y búsqueda en
+servidor. El detalle y los números están en el informe de la entrega.

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
-import { toCustomer } from '@/lib/mappers'
+import { toCustomer, toCustomerSummary } from '@/lib/mappers'
 import { sanitizeSearch } from '@/lib/text'
-import type { Customer } from '@/types/domain'
+import type { Customer, CustomerSummary } from '@/types/domain'
 import type { TablesUpdate } from '@/types/domain'
 
 export const CUSTOMER_PAGE_SIZE = 25
@@ -9,8 +9,11 @@ export const CUSTOMER_PAGE_SIZE = 25
 const CUSTOMER_COLUMNS =
   'id,first_name,last_name,phone,notes,archived_at,created_at,updated_at'
 
-export interface CustomerPage {
-  rows: Customer[]
+const CUSTOMER_SUMMARY_COLUMNS =
+  'customer_id,first_name,last_name,phone,archived_at,accounts_total,accounts_active,next_expiration,worst_status,last_renewal_at'
+
+export interface CustomerSummaryPage {
+  rows: CustomerSummary[]
   total: number
 }
 
@@ -21,9 +24,14 @@ export interface CustomerListParams {
   includeArchived?: boolean
 }
 
-export async function listCustomers(
+/**
+ * Listado de clientes con sus agregados. La paginación y el filtro por texto
+ * se resuelven en el servidor sobre `v_customer_summary` (worst_status,
+ * next_expiration y last_renewal_at ya calculados en SQL).
+ */
+export async function listCustomerSummaries(
   params: CustomerListParams = {},
-): Promise<CustomerPage> {
+): Promise<CustomerSummaryPage> {
   const {
     search = '',
     page = 0,
@@ -32,8 +40,8 @@ export async function listCustomers(
   } = params
 
   let query = supabase
-    .from('customers')
-    .select(CUSTOMER_COLUMNS, { count: 'exact' })
+    .from('v_customer_summary')
+    .select(CUSTOMER_SUMMARY_COLUMNS, { count: 'exact' })
 
   if (!includeArchived) query = query.is('archived_at', null)
 
@@ -51,7 +59,7 @@ export async function listCustomers(
     .range(from, from + pageSize - 1)
 
   if (error) throw error
-  return { rows: (data ?? []).map(toCustomer), total: count ?? 0 }
+  return { rows: (data ?? []).map(toCustomerSummary), total: count ?? 0 }
 }
 
 /** Opciones para el selector de cliente (máx. 50, sin archivados). */

@@ -83,19 +83,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/finanzas',
     name: 'finance',
-    component: () => import('@/views/ModulePendingView.vue'),
-    meta: {
-      title: 'Finanzas',
-      pending: {
-        summary:
-          'La caja del mes desde una sola vista: cobros, gastos y compra de tokens, sin duplicar el egreso.',
-        items: [
-          'Movimientos de caja con dirección explícita (entrada/salida).',
-          'Totales del mes calculados en SQL, no en el navegador.',
-          'Gastos por categoría y exportación de lo que devuelve SQL.',
-        ],
-      },
-    },
+    component: () => import('@/views/FinanceView.vue'),
+    meta: { title: 'Finanzas' },
   },
   {
     path: '/configuracion',

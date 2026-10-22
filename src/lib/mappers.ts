@@ -5,10 +5,15 @@ import type {
   CashDirection,
   CashKind,
   CashMovement,
+  CashMonthly,
   Customer,
+  CustomerSummary,
+  Expense,
   FollowupStatus,
+  Payment,
   Plan,
   Profile,
+  ProfitMonthly,
   RenewalSummary,
   TokenMovement,
   TokenPurchase,
@@ -270,5 +275,104 @@ export function toTokenMovement(
     purchaseId: row.purchase_id,
     reason: row.reason,
     createdAt: row.created_at,
+  }
+}
+
+/* --- Reportes, gastos y cobros ------------------------------------------- */
+
+export function toCashMonthly(
+  row: Pick<
+    Views<'v_cash_monthly'>,
+    'month' | 'income' | 'outflow' | 'net' | 'payments_count' | 'token_purchases'
+  >,
+): CashMonthly {
+  return {
+    month: required(row.month, 'month'),
+    income: requiredNumber(row.income, 'income'),
+    outflow: requiredNumber(row.outflow, 'outflow'),
+    net: requiredNumber(row.net, 'net'),
+    paymentsCount: requiredNumber(row.payments_count, 'payments_count'),
+    tokenPurchases: requiredNumber(row.token_purchases, 'token_purchases'),
+  }
+}
+
+export function toProfitMonthly(
+  row: Pick<
+    Views<'v_profit_monthly'>,
+    'month' | 'agreed_revenue' | 'token_cost' | 'operating_expenses' | 'gross_margin'
+  >,
+): ProfitMonthly {
+  return {
+    month: required(row.month, 'month'),
+    agreedRevenue: requiredNumber(row.agreed_revenue, 'agreed_revenue'),
+    tokenCost: requiredNumber(row.token_cost, 'token_cost'),
+    operatingExpenses: requiredNumber(row.operating_expenses, 'operating_expenses'),
+    grossMargin: requiredNumber(row.gross_margin, 'gross_margin'),
+  }
+}
+
+export function toExpense(
+  row: Pick<
+    Tables<'expenses'>,
+    'id' | 'category' | 'amount' | 'spent_at' | 'description' | 'reference'
+  >,
+): Expense {
+  return {
+    id: row.id,
+    category: row.category,
+    amount: requiredNumber(row.amount, 'amount'),
+    spentAt: required(row.spent_at, 'spent_at'),
+    description: required(row.description, 'description'),
+    reference: row.reference,
+  }
+}
+
+export function toPayment(
+  row: Pick<
+    Tables<'payments'>,
+    'id' | 'renewal_id' | 'amount' | 'method' | 'paid_at' | 'reference' | 'notes'
+  >,
+): Payment {
+  return {
+    id: row.id,
+    renewalId: row.renewal_id,
+    amount: requiredNumber(row.amount, 'amount'),
+    method: row.method,
+    paidAt: required(row.paid_at, 'paid_at'),
+    reference: row.reference,
+    notes: row.notes,
+  }
+}
+
+export function toCustomerSummary(
+  row: Pick<
+    Views<'v_customer_summary'>,
+    | 'customer_id'
+    | 'first_name'
+    | 'last_name'
+    | 'phone'
+    | 'archived_at'
+    | 'accounts_total'
+    | 'accounts_active'
+    | 'next_expiration'
+    | 'worst_status'
+    | 'last_renewal_at'
+  >,
+): CustomerSummary {
+  const worst = row.worst_status
+  if (worst !== null && !isAccountStatus(worst)) {
+    throw new AppError('El cliente tiene un estado desconocido.', 'DATA')
+  }
+  return {
+    customerId: required(row.customer_id, 'customer_id'),
+    firstName: required(row.first_name, 'first_name'),
+    lastName: required(row.last_name, 'last_name'),
+    phone: required(row.phone, 'phone'),
+    archivedAt: row.archived_at,
+    accountsTotal: requiredNumber(row.accounts_total, 'accounts_total'),
+    accountsActive: requiredNumber(row.accounts_active, 'accounts_active'),
+    nextExpiration: row.next_expiration,
+    worstStatus: worst as AccountStatus | null,
+    lastRenewalAt: row.last_renewal_at,
   }
 }

@@ -10,18 +10,19 @@ import AppPagination from '@/components/ui/AppPagination.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import DataTable, { type TableColumn } from '@/components/ui/DataTable.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import CustomerFormModal from '@/components/customers/CustomerFormModal.vue'
 import { useDebouncedRef } from '@/composables/useDebouncedRef'
 import { useToast } from '@/composables/useToast'
 import { toUserMessage } from '@/lib/errors'
-import { formatPhone } from '@/lib/format'
+import { formatDate, formatPhone } from '@/lib/format'
 import { queryKeys } from '@/lib/query-keys'
 import {
-  countActiveAccounts,
-  listCustomers,
+  getCustomer,
+  listCustomerSummaries,
   updateCustomer,
 } from '@/services/customers'
-import type { Customer } from '@/types/domain'
+import type { Customer, CustomerSummary } from '@/types/domain'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -43,7 +44,7 @@ const customersQuery = useQuery({
     }),
   ),
   queryFn: () =>
-    listCustomers({
+    listCustomerSummaries({
       search: debouncedSearch.value,
       page: page.value,
       pageSize: pageSize.value,
@@ -63,17 +64,24 @@ watch([debouncedSearch, includeArchived], () => {
 })
 
 const columns: TableColumn[] = [
+  { key: 'status', label: 'Peor estado', width: '130px', card: 'start' },
   { key: 'customer', label: 'Cliente', card: 'primary' },
-  { key: 'phone', label: 'Teléfono', card: 'meta' },
-  { key: 'status', label: 'Estado', width: '130px' },
-  { key: 'notes', label: 'Notas', hideBelow: 'xl' },
+  { key: 'accounts', label: 'Cuentas activas', width: '140px', numeric: true, mobileLabel: 'Cuentas activas' },
+  { key: 'next', label: 'Próximo vencimiento', width: '160px', card: 'end', mobileLabel: 'Próximo vencimiento' },
+  {
+    key: 'lastRenewal',
+    label: 'Última renovación',
+    width: '150px',
+    hideBelow: 'lg',
+    card: 'meta',
+  },
   { key: 'actions', label: 'Acciones', width: '120px', align: 'right', card: 'actions' },
 ]
 
 const formOpen = ref(false)
 const editing = ref<Customer | null>(null)
 const confirmOpen = ref(false)
-const confirmTarget = ref<Customer | null>(null)
+const confirmTarget = ref<CustomerSummary | null>(null)
 const confirmLoading = ref(false)
 const confirmError = ref<string | null>(null)
 
@@ -82,16 +90,29 @@ function createCustomer(): void {
   formOpen.value = true
 }
 
-function editCustomer(customer: Customer): void {
-  editing.value = customer
-  formOpen.value = true
+/** La vista no trae `notes`: se pide el cliente completo para editarlo. */
+async function editCustomer(summary: CustomerSummary): Promise<void> {
+  try {
+    const customer = await getCustomer(summary.customerId)
+    if (!customer) {
+      toast.error('No se encontró el cliente.')
+      return
+    }
+    editing.value = customer
+    formOpen.value = true
+  } catch (error) {
+    toast.error(toUserMessage(error, 'No se pudo abrir el cliente.'))
+  }
 }
 
-function openDetail(customer: Customer): void {
-  void router.push({ name: 'customer-detail', params: { customerId: customer.id } })
+function openDetail(customer: CustomerSummary): void {
+  void router.push({
+    name: 'customer-detail',
+    params: { customerId: customer.customerId },
+  })
 }
 
-function requestToggle(customer: Customer): void {
+function requestToggle(customer: CustomerSummary): void {
   confirmTarget.value = customer
   confirmError.value = null
   confirmOpen.value = true
@@ -104,14 +125,11 @@ async function toggleArchive(): Promise<void> {
   confirmError.value = null
   const archiving = customer.archivedAt === null
   try {
-    if (archiving) {
-      const active = await countActiveAccounts(customer.id)
-      if (active > 0) {
-        confirmError.value = 'Archiva o reasigna sus cuentas primero.'
-        return
-      }
+    if (archiving && customer.accountsActive > 0) {
+      confirmError.value = 'Archiva o reasigna sus cuentas primero.'
+      return
     }
-    await updateCustomer(customer.id, {
+    await updateCustomer(customer.customerId, {
       archived_at: archiving ? new Date().toISOString() : null,
     })
     toast.success(archiving ? 'Cliente archivado' : 'Cliente reactivado', {
@@ -166,7 +184,7 @@ function onCreated(id: string): void {
     <DataTable
       :columns="columns"
       :rows="rows"
-      :row-key="(row) => row.id"
+      :row-key="(row) => row.customerId"
       :row-label="(row) => `Abrir ficha de ${row.firstName} ${row.lastName}`"
       :loading="loading"
       :error="loadError"
@@ -176,32 +194,36 @@ function onCreated(id: string): void {
       @retry="customersQuery.refetch()"
       @activate="openDetail"
     >
+      <template #cell-status="{ row }">
+        <StatusBadge v-if="row.worstStatus" :status="row.worstStatus" />
+        <span v-else class="text-content-muted" title="Sin cuentas activas">—</span>
+      </template>
+
       <template #cell-customer="{ row }">
         <span class="block truncate font-medium">{{ row.lastName }}, {{ row.firstName }}</span>
-        <span v-if="row.archivedAt" class="text-xs text-content-muted">Archivado</span>
-      </template>
-
-      <template #cell-phone="{ row }">
-        <span class="tabular">{{ formatPhone(row.phone) }}</span>
-      </template>
-
-      <template #cell-status="{ row }">
-        <span
-          class="badge"
-          :style="
-            row.archivedAt
-              ? { color: 'var(--status-archivada-fg)', background: 'var(--status-archivada-bg)', borderStyle: 'dashed', borderColor: 'var(--status-archivada-border)' }
-              : { color: 'var(--status-activa-fg)', background: 'var(--status-activa-bg)', borderColor: 'var(--status-activa-border)' }
-          "
-        >
-          {{ row.archivedAt ? 'Archivado' : 'Activo' }}
+        <span class="block text-xs text-content-muted">
+          {{ formatPhone(row.phone) }}
+          <template v-if="row.archivedAt"> · Archivado</template>
         </span>
       </template>
 
-      <template #cell-notes="{ row }">
-        <span class="block max-w-[28ch] truncate text-sm text-content-muted">
-          {{ row.notes ?? '—' }}
+      <template #cell-accounts="{ row }">
+        <span class="tabular font-medium">{{ row.accountsActive }}</span>
+        <span class="text-xs text-content-muted"> de {{ row.accountsTotal }}</span>
+      </template>
+
+      <template #cell-next="{ row }">
+        <span v-if="row.nextExpiration" class="tabular">
+          {{ formatDate(row.nextExpiration) }}
         </span>
+        <span v-else class="text-content-muted">—</span>
+      </template>
+
+      <template #cell-lastRenewal="{ row }">
+        <span v-if="row.lastRenewalAt" class="tabular">
+          {{ formatDate(row.lastRenewalAt) }}
+        </span>
+        <span v-else class="text-content-muted">—</span>
       </template>
 
       <template #cell-actions="{ row }">

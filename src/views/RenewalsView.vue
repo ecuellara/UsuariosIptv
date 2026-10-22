@@ -3,9 +3,11 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import AccountActionsHost from '@/components/accounts/AccountActionsHost.vue'
+import RenewalDetailSheet from '@/components/renewals/RenewalDetailSheet.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import AppTooltip from '@/components/ui/AppTooltip.vue'
 import DataTable, { type TableColumn } from '@/components/ui/DataTable.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { formatDate, limaTimeKey } from '@/lib/dates'
@@ -42,15 +44,31 @@ const columns: TableColumn[] = [
   { key: 'account', label: 'Cliente y cuenta', card: 'primary' },
   { key: 'recorded', label: 'Registrada', width: '145px', card: 'meta' },
   { key: 'plan', label: 'Plan', width: '170px', hideBelow: 'lg' },
-  { key: 'agreed', label: 'Acordado', width: '110px', align: 'right', numeric: true },
-  { key: 'paid', label: 'Cobrado', width: '110px', align: 'right', numeric: true, hideBelow: 'lg' },
-  { key: 'pending', label: 'Pendiente', width: '110px', align: 'right', numeric: true },
+  { key: 'agreed', label: 'Acordado', width: '110px', align: 'right', numeric: true, mobileLabel: 'Acordado' },
+  { key: 'paid', label: 'Cobrado', width: '110px', align: 'right', numeric: true, hideBelow: 'lg', mobileLabel: 'Cobrado' },
+  { key: 'pending', label: 'Pendiente', width: '110px', align: 'right', numeric: true, mobileLabel: 'Pendiente' },
   { key: 'tokens', label: 'Tokens', width: '80px', align: 'right', numeric: true, hideBelow: 'xl' },
-  { key: 'margin', label: 'Margen', width: '110px', align: 'right', numeric: true, card: 'end' },
+  { key: 'margin', label: 'Margen', width: '110px', align: 'right', numeric: true, card: 'end', mobileLabel: 'Margen' },
   { key: 'actions', label: 'Acciones', width: '110px', align: 'right', card: 'actions' },
 ]
 
 const accountActions = ref<InstanceType<typeof AccountActionsHost> | null>(null)
+
+const detailOpen = ref(false)
+const detailRow = ref<RenewalWithAccount | null>(null)
+
+function openDetail(row: RenewalWithAccount): void {
+  detailRow.value = row
+  detailOpen.value = true
+}
+
+function onDetailChanged(): void {
+  void renewalsQuery.refetch().then((result) => {
+    const id = detailRow.value?.renewal.id
+    const updated = result.data?.find((row) => row.renewal.id === id)
+    if (updated) detailRow.value = updated
+  })
+}
 
 function openRenewal(): void {
   accountActions.value?.openRenewal({})
@@ -104,16 +122,40 @@ function statusStyle(renewal: RenewalWithAccount['renewal']): Record<string, str
       :columns="columns"
       :rows="rows"
       :row-key="(row) => row.renewal.id"
+      :row-label="
+        (row) =>
+          `Abrir detalle de la renovación de ${row.account?.customerName ?? row.renewal.accountId}`
+      "
       :loading="loading"
       :error="loadError"
       error-message="No se pudieron cargar las renovaciones."
       caption="Historial de renovaciones"
+      interactive
       @retry="renewalsQuery.refetch()"
+      @activate="openDetail"
     >
       <template #cell-status="{ row }">
-        <span class="badge" :style="statusStyle(row.renewal)">
-          {{ row.renewal.isReversed ? 'Revertida' : 'Confirmada' }}
-        </span>
+        <div class="flex flex-col items-start gap-1">
+          <span class="badge" :style="statusStyle(row.renewal)">
+            {{ row.renewal.isReversed ? 'Revertida' : 'Confirmada' }}
+          </span>
+          <AppTooltip
+            v-if="row.renewal.isReversed && row.renewal.amountPaid > 0"
+            text="La reversión no devuelve el dinero: el cobro sigue en caja. Devuélvelo o regístralo como gasto si corresponde."
+          >
+            <span
+              tabindex="0"
+              class="badge inline-flex max-w-36 cursor-help whitespace-normal text-left"
+              :style="{
+                color: 'var(--color-warning-text)',
+                background: 'var(--color-warning-soft)',
+                borderColor: 'var(--color-warning-border)',
+              }"
+            >
+              Cobro sin renovación vigente
+            </span>
+          </AppTooltip>
+        </div>
       </template>
 
       <template #cell-account="{ row }">
@@ -201,9 +243,16 @@ function statusStyle(renewal: RenewalWithAccount['renewal']): Record<string, str
     </DataTable>
 
     <p class="text-xs text-content-muted">
-      Los totales del periodo (acordado, cobrado y pendiente) se calcularán en SQL en el
-      módulo de Finanzas; aquí no se suman importes en el navegador.
+      Los totales del periodo (acordado, cobrado y pendiente) viven en Finanzas y se
+      calculan en SQL; aquí no se suman importes en el navegador.
     </p>
+
+    <RenewalDetailSheet
+      v-model:open="detailOpen"
+      :renewal="detailRow?.renewal ?? null"
+      :account="detailRow?.account ?? null"
+      @changed="onDetailChanged"
+    />
 
     <AccountActionsHost ref="accountActions" />
   </div>

@@ -36,6 +36,7 @@ export type IconName =
   | 'arrow-right'
   | 'archive'
   | 'pencil'
+  | 'trash'
   | 'clock'
   | 'banknote'
   | 'receipt'
@@ -87,6 +88,7 @@ const PATHS: Record<IconName, string> = {
   'arrow-right': 'M4 12h15M13 6l6 6-6 6',
   archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M9 12h6',
   pencil: 'M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3ZM14.5 5.5l3 3',
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7.5V12l3 2',
   banknote: 'M2 6h20v12H2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 9v.5M18 14.5V15',
   receipt: 'M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6',

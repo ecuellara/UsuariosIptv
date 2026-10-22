@@ -47,6 +47,7 @@ export const FOLLOWUP_STATUSES = [
 export type PaymentMethod = Enums<'payment_method'>
 export type MovementType = Enums<'token_movement_type'>
 export type RenewalOperationType = Enums<'renewal_operation_type'>
+export type ExpenseCategory = Enums<'expense_category'>
 export type CashDirection = 'IN' | 'OUT'
 export type CashKind = 'COBRO' | 'GASTO' | 'COMPRA_TOKENS'
 
@@ -57,6 +58,14 @@ export const PAYMENT_METHODS = [
   'EFECTIVO',
   'OTRO',
 ] as const satisfies readonly PaymentMethod[]
+
+/* Sin categoría de tokens: comprar tokens es caja/inventario, no gasto (ADR-005). */
+export const EXPENSE_CATEGORIES = [
+  'OPERATIVO',
+  'PUBLICIDAD',
+  'HERRAMIENTAS',
+  'OTRO',
+] as const satisfies readonly ExpenseCategory[]
 
 export const TOKEN_MOVEMENT_TYPES = [
   'COMPRA',
@@ -179,6 +188,66 @@ export interface RenewalSummary {
 export interface RenewalWithAccount {
   renewal: RenewalSummary
   account: Account | null
+}
+
+/* --- Cobros --------------------------------------------------------------- */
+
+export interface Payment {
+  id: string
+  renewalId: string
+  amount: number
+  method: PaymentMethod
+  paidAt: string
+  reference: string | null
+  notes: string | null
+}
+
+/* --- Reportes por mes (SQL) ------------------------------------------------
+   Cada cifra viene calculada por la vista. El navegador solo resta
+   `outflow − token_purchases` para rotular los gastos operativos de caja
+   (dos escalares de SQL, nunca una agregación de filas). */
+
+export interface CashMonthly {
+  month: string
+  income: number
+  outflow: number
+  net: number
+  paymentsCount: number
+  tokenPurchases: number
+}
+
+export interface ProfitMonthly {
+  month: string
+  agreedRevenue: number
+  tokenCost: number
+  operatingExpenses: number
+  grossMargin: number
+}
+
+/* --- Gastos operativos ---------------------------------------------------- */
+
+export interface Expense {
+  id: string
+  category: ExpenseCategory
+  amount: number
+  spentAt: string
+  description: string
+  reference: string | null
+}
+
+/* --- Resumen por cliente -------------------------------------------------- */
+
+export interface CustomerSummary {
+  customerId: string
+  firstName: string
+  lastName: string
+  phone: string
+  archivedAt: string | null
+  accountsTotal: number
+  accountsActive: number
+  nextExpiration: string | null
+  worstStatus: AccountStatus | null
+  lastRenewalAt: string | null
 }
 
 /* --- Tokens --------------------------------------------------------------- */

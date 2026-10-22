@@ -16,6 +16,8 @@ export interface TableColumn {
   hideBelow?: 'lg' | 'xl'
   /** Posición en la tarjeta móvil. */
   card?: 'start' | 'end' | 'primary' | 'meta' | 'actions'
+  /** Etiqueta que se antepone al valor solo en la tarjeta (≤640 px). */
+  mobileLabel?: string
   numeric?: boolean
 }
 
@@ -73,7 +75,9 @@ function cellClasses(column: TableColumn): string[] {
       classes.push('dt-card-meta')
       break
     case 'actions':
-      classes.push('dt-card-actions')
+      /* La columna de acciones se queda fija a la derecha mientras el resto
+         se desplaza en horizontal (CSS `.dt-col-actions`). */
+      classes.push('dt-card-actions', 'dt-col-actions')
       break
     default:
       break
@@ -129,6 +133,7 @@ function onRowKeydown(row: T, event: KeyboardEvent): void {
             :style="column.width ? { width: column.width } : undefined"
             :class="[
               column.align === 'right' || column.numeric ? 'text-right' : 'text-left',
+              column.card === 'actions' ? 'dt-col-actions' : '',
               column.hideBelow === 'lg' ? 'hidden lg:table-cell' : '',
               column.hideBelow === 'xl' ? 'hidden xl:table-cell' : '',
             ]"
@@ -179,7 +184,7 @@ function onRowKeydown(row: T, event: KeyboardEvent): void {
             @click="onRowClick(row, $event)"
             @keydown="onRowKeydown(row, $event)"
           >
-            <td v-for="column in columns" :key="column.key" :class="cellClasses(column)">
+            <td v-for="column in columns" :key="column.key" :class="cellClasses(column)" :data-label="column.mobileLabel">
               <slot
                 :name="`cell-${column.key}`"
                 :row="row"

@@ -1,8 +1,8 @@
 import { countAccounts, listStaleAccounts } from '@/services/accounts'
 import { countCashMovements, listCashMovements, type CashRange } from '@/services/cash'
 import { countCustomers } from '@/services/customers'
-import { getAppSettings, getTokenStock } from '@/services/plans'
-import type { Account, AppSettings, CashMovement, TokenStock } from '@/types/domain'
+import { getAppSettings } from '@/services/plans'
+import type { Account, AppSettings, CashMovement } from '@/types/domain'
 
 /**
  * Métricas del dashboard. Todos los conteos son `COUNT` ejecutados por
@@ -21,7 +21,6 @@ export interface DashboardMetrics {
   stale: number
   customers: number
   totalAccounts: number
-  stock: TokenStock
   settings: AppSettings
 }
 
@@ -35,7 +34,6 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     stale,
     customers,
     totalAccounts,
-    stock,
     settings,
   ] = await Promise.all([
     countAccounts({ scope: 'TODAY' }),
@@ -46,7 +44,6 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     countAccounts({ scope: 'ALL', staleOnly: true }),
     countCustomers(),
     countAccounts({ scope: 'ALL' }),
-    getTokenStock(),
     getAppSettings(),
   ])
 
@@ -59,7 +56,6 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     stale,
     customers,
     totalAccounts,
-    stock,
     settings,
   }
 }

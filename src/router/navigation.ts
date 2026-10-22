@@ -19,7 +19,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { name: 'followup', label: 'Seguimiento', icon: 'message-circle', soon: true },
   { name: 'renewals', label: 'Renovaciones', icon: 'refresh' },
   { name: 'tokens', label: 'Tokens', icon: 'coins' },
-  { name: 'finance', label: 'Finanzas', icon: 'wallet', soon: true },
+  { name: 'finance', label: 'Finanzas', icon: 'wallet' },
   { name: 'settings', label: 'Configuración', icon: 'settings' },
 ]
 

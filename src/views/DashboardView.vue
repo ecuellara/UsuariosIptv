@@ -8,11 +8,13 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSegmentedFilter from '@/components/ui/AppSegmentedFilter.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
+import AppSkeleton from '@/components/ui/AppSkeleton.vue'
 import DataTable, { type TableColumn } from '@/components/ui/DataTable.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import MetricCard from '@/components/ui/MetricCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import CustomerFormModal from '@/components/customers/CustomerFormModal.vue'
+import ExpenseFormModal from '@/components/finance/ExpenseFormModal.vue'
 import AccountActionsHost from '@/components/accounts/AccountActionsHost.vue'
 import { useDebouncedRef } from '@/composables/useDebouncedRef'
 import { currentMonthRangeInLima, formatDateKey, formatLongDate } from '@/lib/dates'
@@ -29,6 +31,8 @@ import { queryKeys } from '@/lib/query-keys'
 import { whatsappUrl } from '@/lib/text'
 import { listAccounts } from '@/services/accounts'
 import { getCashOverview, getDashboardMetrics, getStaleAccounts } from '@/services/dashboard'
+import { getCashMonthly } from '@/services/finance'
+import { getTokenSummary } from '@/services/tokens'
 import type { Account, AccountStatus } from '@/types/domain'
 
 const router = useRouter()
@@ -49,34 +53,43 @@ const metricsError = computed(() => metricsQuery.isError.value)
 const urgentDays = computed(() => metrics.value?.settings.urgentDays ?? 3)
 const warningDays = computed(() => metrics.value?.settings.warningDays ?? 7)
 
+const tokenQuery = useQuery({
+  queryKey: queryKeys.tokens.summary,
+  queryFn: getTokenSummary,
+  staleTime: 60_000,
+})
+
+const tokenSummary = computed(() => tokenQuery.data.value ?? null)
+const tokenSummaryLoading = computed(() => tokenQuery.isPending.value)
+const tokenSummaryError = computed(() => tokenQuery.isError.value)
+
 const tokenLevel = computed<'ok' | 'low' | 'empty'>(() => {
-  const data = metrics.value
+  const data = tokenSummary.value
   if (!data) return 'ok'
-  if (data.stock.quantity === 0) return 'empty'
-  if (data.stock.quantity < data.settings.minTokenBalance) return 'low'
+  if (data.quantity === 0) return 'empty'
+  if (data.belowMinimum) return 'low'
   return 'ok'
 })
 
 const tokenMeter = computed(() => {
-  const data = metrics.value
+  const data = tokenSummary.value
   if (!data) return undefined
-  const minimum = data.settings.minTokenBalance
   return {
-    value: data.stock.quantity,
-    max: Math.max(minimum * 4, 1),
+    value: data.quantity,
+    max: Math.max(data.minBalance * 4, 1),
     level: tokenLevel.value,
-    label: `${formatTokens(data.stock.quantity)} sobre un mínimo de ${minimum}`,
+    label: `${formatTokens(data.quantity)} sobre un mínimo de ${data.minBalance}`,
   }
 })
 
 const tokenContext = computed(() => {
-  const data = metrics.value
-  if (!data) return undefined
+  const data = tokenSummary.value
+  if (!data) return 'Inventario no disponible'
   const cost =
-    data.stock.avgUnitCost > 0
-      ? `${formatDecimal(data.stock.avgUnitCost, 4)} por token`
+    data.avgUnitCost > 0
+      ? `${formatDecimal(data.avgUnitCost, 4)} por token`
       : 'sin compras registradas'
-  return `tokens · mínimo ${data.settings.minTokenBalance} · ${cost}`
+  return `${formatMoney(data.inventoryValue)} en inventario · ${cost}`
 })
 
 /* --- Filtros y tabla ------------------------------------------------------ */
@@ -182,6 +195,18 @@ const cash = computed(() => cashQuery.data.value ?? null)
 const cashLoading = computed(() => cashQuery.isPending.value)
 const cashError = computed(() => cashQuery.isError.value)
 
+/* Neto del mes: sale de `v_cash_monthly` (SQL). El dashboard no suma
+   movimientos ni importes. */
+const cashMonthlyQuery = useQuery({
+  queryKey: queryKeys.dashboard.cashMonthly(month.key),
+  queryFn: () => getCashMonthly(month.key),
+  staleTime: 60_000,
+})
+
+const cashMonthly = computed(() => cashMonthlyQuery.data.value ?? null)
+const cashMonthlyLoading = computed(() => cashMonthlyQuery.isPending.value)
+const cashMonthlyError = computed(() => cashMonthlyQuery.isError.value)
+
 const staleQuery = useQuery({
   queryKey: queryKeys.accounts.stale(4),
   queryFn: () => getStaleAccounts(4),
@@ -195,6 +220,7 @@ const staleError = computed(() => staleQuery.isError.value)
 /* --- Detalle y acciones ---------------------------------------------------- */
 
 const customerModalOpen = ref(false)
+const expenseOpen = ref(false)
 const accountActions = ref<InstanceType<typeof AccountActionsHost> | null>(null)
 
 function openDetail(account: Account): void {
@@ -312,11 +338,11 @@ function goToAccounts(): void {
       />
       <MetricCard
         label="Saldo de tokens"
-        :value="metrics ? formatInteger(metrics.stock.quantity) : null"
+        :value="tokenSummary ? formatInteger(tokenSummary.quantity) : null"
         :context="tokenContext"
         :severity="tokenLevel === 'empty' ? 'critical' : tokenLevel === 'low' ? 'attention' : 'neutral'"
-        :loading="metricsLoading"
-        :error="metricsError"
+        :loading="tokenSummaryLoading"
+        :error="tokenSummaryError"
         :meter="tokenMeter"
         :to="{ name: 'tokens' }"
       />
@@ -476,10 +502,15 @@ function goToAccounts(): void {
                 <AppIcon name="coins" :size="16" />
                 Comprar tokens
               </RouterLink>
-              <RouterLink :to="{ name: 'finance' }" class="btn" data-variant="secondary">
+              <button
+                type="button"
+                class="btn"
+                data-variant="secondary"
+                @click="expenseOpen = true"
+              >
                 <AppIcon name="receipt" :size="16" />
                 Registrar gasto
-              </RouterLink>
+              </button>
             </div>
             <button
               type="button"
@@ -493,45 +524,81 @@ function goToAccounts(): void {
           </div>
         </section>
 
-        <section class="panel p-4" :aria-busy="cashLoading || undefined">
-          <div class="mb-2 flex items-baseline justify-between gap-2">
-            <h2 class="section-label">Movimientos de {{ month.label }}</h2>
-            <span v-if="cash" class="text-xs tabular text-content-muted">{{ cash.count }}</span>
+        <section class="panel p-4" :aria-busy="cashLoading || cashMonthlyLoading || undefined">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <h2 class="section-label">Caja de {{ month.label }}</h2>
+              <div v-if="cashMonthlyLoading" class="mt-1">
+                <AppSkeleton width="128px" height="28px" />
+              </div>
+              <p v-else-if="cashMonthlyError" class="mt-1 text-sm text-danger-text" role="alert">
+                No disponible.
+                <button type="button" class="underline" @click="cashMonthlyQuery.refetch()">
+                  Reintentar
+                </button>
+              </p>
+              <p
+                v-else
+                class="mt-1 text-2xl font-semibold tabular"
+                :class="(cashMonthly?.net ?? 0) < 0 ? 'text-danger-text' : 'text-content'"
+              >
+                {{ formatMoney(cashMonthly?.net ?? 0) }}
+              </p>
+              <p class="text-xs text-content-muted">
+                <template v-if="cashMonthly">
+                  Neto del mes · Cobrado {{ formatMoney(cashMonthly.income) }} · Egresos
+                  {{ formatMoney(cashMonthly.outflow) }}
+                </template>
+                <template v-else-if="!cashMonthlyLoading && !cashMonthlyError">
+                  Sin movimientos en el mes · neto {{ formatMoney(0) }}
+                </template>
+                <template v-else>Neto del mes según v_cash_monthly</template>
+              </p>
+            </div>
+            <span v-if="cash" class="shrink-0 text-xs tabular text-content-muted">
+              {{ cash.count }} mov.
+            </span>
           </div>
 
-          <p v-if="cashLoading" class="text-sm text-content-muted">Cargando…</p>
-          <p v-else-if="cashError" class="text-sm text-danger-text" role="alert">
-            No disponible.
-            <button type="button" class="underline" @click="cashQuery.refetch()">Reintentar</button>
-          </p>
-          <p v-else-if="(cash?.movements.length ?? 0) === 0" class="text-sm text-content-muted">
-            Sin movimientos este mes.
-          </p>
-          <ul v-else class="flex flex-col divide-y divide-border">
-            <li
-              v-for="movement in cash?.movements ?? []"
-              :key="`${movement.kind}-${movement.sourceId ?? movement.occurredAt}`"
-              class="flex items-start justify-between gap-3 py-2"
-            >
-              <span class="min-w-0">
-                <span class="block truncate text-sm text-content">
-                  {{ movement.description ?? movement.kind }}
-                </span>
-                <span class="block text-xs text-content-muted">
-                  {{ formatDateTime(movement.occurredAt) }} ·
-                  {{ movement.kind === 'COBRO' ? 'Cobro' : movement.kind === 'GASTO' ? 'Gasto' : 'Compra de tokens' }}
-                </span>
-              </span>
-              <span
-                class="shrink-0 text-sm tabular"
-                :style="{ color: movement.direction === 'IN' ? 'var(--color-success-text)' : 'var(--color-text)' }"
+          <div class="mt-3 border-t border-border pt-2">
+            <h3 class="section-label mb-1">Movimientos</h3>
+
+            <p v-if="cashLoading" class="text-sm text-content-muted">Cargando…</p>
+            <p v-else-if="cashError" class="text-sm text-danger-text" role="alert">
+              No disponible.
+              <button type="button" class="underline" @click="cashQuery.refetch()">Reintentar</button>
+            </p>
+            <p v-else-if="(cash?.movements.length ?? 0) === 0" class="text-sm text-content-muted">
+              Sin movimientos este mes.
+            </p>
+            <ul v-else class="flex flex-col divide-y divide-border">
+              <li
+                v-for="movement in cash?.movements ?? []"
+                :key="`${movement.kind}-${movement.sourceId ?? movement.occurredAt}`"
+                class="flex items-start justify-between gap-3 py-2"
               >
-                {{ formatMoney(movement.amount, { sign: movement.direction === 'IN' ? 'always' : 'negative' }) }}
-              </span>
-            </li>
-          </ul>
+                <span class="min-w-0">
+                  <span class="block truncate text-sm text-content">
+                    {{ movement.description ?? movement.kind }}
+                  </span>
+                  <span class="block text-xs text-content-muted">
+                    {{ formatDateTime(movement.occurredAt) }} ·
+                    {{ movement.kind === 'COBRO' ? 'Cobro' : movement.kind === 'GASTO' ? 'Gasto' : 'Compra de tokens' }}
+                  </span>
+                </span>
+                <span
+                  class="shrink-0 text-sm tabular"
+                  :style="{ color: movement.direction === 'IN' ? 'var(--color-success-text)' : 'var(--color-text)' }"
+                >
+                  {{ formatMoney(movement.amount, { sign: movement.direction === 'IN' ? 'always' : 'negative' }) }}
+                </span>
+              </li>
+            </ul>
+          </div>
+
           <p class="mt-2 text-xs text-content-muted">
-            El total del mes y su desglose llegarán con Finanzas: se calculan en SQL, no en el navegador.
+            El neto y el desglose salen de <code class="font-mono text-xs">v_cash_monthly</code>.
+            La lista de movimientos es informativa y no se suma en el navegador.
           </p>
         </section>
 
@@ -568,6 +635,8 @@ function goToAccounts(): void {
     </div>
 
     <CustomerFormModal v-model:open="customerModalOpen" />
+
+    <ExpenseFormModal v-model:open="expenseOpen" />
 
     <AccountActionsHost ref="accountActions" />
   </div>
