@@ -1,9 +1,9 @@
 ﻿# =============================================================================
 # CI de IPTV Manager
 # -----------------------------------------------------------------------------
-# QuÃ© valida: secretos, tipos, lint, tests, build de producciÃ³n (con variables
+# Qué valida: secretos, tipos, lint, tests, build de producción (con variables
 #   dummy), guardas del bundle y las 11 pruebas SQL sobre PGlite.
-# QuÃ© NO hace: desplegar ni aplicar migraciones. El despliegue es manual y estÃ¡
+# Qué NO hace: desplegar ni aplicar migraciones. El despliegue es manual y está
 #   documentado en docs/07-deploy.md.
 #
 # Variables: este workflow usa SOLO placeholders. Nunca service_role, nunca
@@ -25,7 +25,7 @@ concurrency:
 
 env:
   NODE_VERSION: '24'
-  # Placeholders vÃ¡lidos para compilar. NO son credenciales del proyecto real.
+  # Placeholders válidos para compilar. NO son credenciales del proyecto real.
   VITE_SUPABASE_URL: 'https://ci-placeholder.supabase.co'
   VITE_SUPABASE_ANON_KEY: 'sb_publishable_ci_placeholder_000000000000000000000'
 
@@ -41,10 +41,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Fallo rÃ¡pido: si hay un secreto en el repo o en el historial, no tiene
-      # sentido gastar 5 minutos compilando. Se usa la CLI directamente: la
-      # acciÃ³n oficial construye un rango `<base>^..<head>` que falla cuando el
-      # push incluye el commit raÃ­z (no tiene padre).
+      # Fallo rápido: si hay un secreto en el repo o en el historial, no tiene
+      # sentido gastar 5 minutos compilando. Se usa la CLI directamente porque
+      # la acción oficial construye un rango `<base>^..<head>` que falla cuando
+      # el push incluye el commit raíz (no tiene padre).
       - name: Escaneo de secretos (gitleaks)
         run: |
           set -euo pipefail
@@ -73,7 +73,7 @@ jobs:
       - name: Tests unitarios
         run: npm run test
 
-      - name: Build de producciÃ³n (variables dummy)
+      - name: Build de producción (variables dummy)
         run: npm run build
 
       # El build con placeholders debe inyectarlos: si Vite no los ve, el
@@ -85,24 +85,24 @@ jobs:
 
           # OJO: @supabase/supabase-js incluye el literal `sb_secret_` para detectar
           # el tipo de clave. La guarda busca una clave real (prefijo + valor),
-          # no la constante de la librerÃ­a.
+          # no la constante de la librería.
           if grep -rIEo --exclude='*.map' 'sb_secret_[A-Za-z0-9_-]{16,}' dist; then
             echo "::error::dist contiene una secret key de Supabase. Abortando."
             exit 1
           fi
           # `service_role` aparece como literal en @supabase/supabase-js (nombre
-          # del rol al decodificar un JWT), asÃ­ que no se busca esa palabra:
+          # del rol al decodificar un JWT), así que no se busca esa palabra:
           # una clave real se detecta por su formato y por gitleaks.
           echo "OK: dist sin secret keys"
 
           if ! grep -rqF "$VITE_SUPABASE_URL" dist; then
-            echo "::error::dist no contiene VITE_SUPABASE_URL; el build no recibiÃ³ las variables."
+            echo "::error::dist no contiene VITE_SUPABASE_URL; el build no recibió las variables."
             exit 1
           fi
           echo "OK: dist contiene la URL de Supabase inyectada en build"
 
           if ! grep -rqF "$VITE_SUPABASE_ANON_KEY" dist; then
-            echo "::error::dist no contiene VITE_SUPABASE_ANON_KEY; el build no recibiÃ³ las variables."
+            echo "::error::dist no contiene VITE_SUPABASE_ANON_KEY; el build no recibió las variables."
             exit 1
           fi
           echo "OK: dist contiene la publishable key inyectada en build"
@@ -115,7 +115,7 @@ jobs:
 
       # No bloquea: si el registry falla o hay avisos, queda como warning en el
       # resumen del job. Un CVE real se ve en el summary y se atiende aparte.
-      - name: Audit de dependencias de producciÃ³n (no bloqueante)
+      - name: Audit de dependencias de producción (no bloqueante)
         run: |
           set +e
           npm audit --omit=dev --audit-level=high > audit.txt 2>&1
@@ -125,10 +125,10 @@ jobs:
             echo "### npm audit (--omit=dev --audit-level=high)"
             if [ "$code" -eq 0 ]; then
               echo ""
-              echo "Sin vulnerabilidades altas/crÃ­ticas en dependencias de producciÃ³n."
+              echo "Sin vulnerabilidades altas/críticas en dependencias de producción."
             else
               echo ""
-              echo "âš ï¸ Warning no bloqueante (cÃ³digo $code): revisar el reporte o la conectividad con el registry."
+              echo "⚠️ Warning no bloqueante (código $code): revisar el reporte o la conectividad con el registry."
               echo ""
               echo '```'
               head -60 audit.txt
@@ -137,7 +137,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit 0
 
-      - name: Publicar dist como artefacto (7 dÃ­as)
+      - name: Publicar dist como artefacto (7 días)
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ github.sha }}
