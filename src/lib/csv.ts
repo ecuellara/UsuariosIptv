@@ -11,9 +11,20 @@ export interface CsvOptions {
   bom?: boolean
 }
 
+/* Un valor que empieza por estos caracteres puede ejecutarse como fórmula al
+   abrir el CSV en Excel/LibreOffice (OWASP: CSV injection). Los números
+   negativos legítimos (`-15.50`) se dejan intactos. */
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/
+const PLAIN_NUMBER = /^-?\d+([.,]\d+)?$/
+
+function neutralizeFormula(text: string): string {
+  if (!FORMULA_TRIGGER.test(text) || PLAIN_NUMBER.test(text)) return text
+  return `'${text}`
+}
+
 export function csvEscape(value: CsvValue, delimiter = ';'): string {
   if (value === null || value === undefined) return ''
-  const text = String(value)
+  const text = neutralizeFormula(String(value))
   if (
     text.includes('"') ||
     text.includes(delimiter) ||

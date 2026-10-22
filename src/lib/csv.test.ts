@@ -28,6 +28,18 @@ describe('CSV de Finanzas', () => {
     expect(toCsv([['Referencia', null]], { bom: false })).toBe('Referencia;')
   })
 
+  it('neutraliza fórmulas al abrir el CSV en Excel', () => {
+    expect(csvEscape('=1+1')).toBe("'=1+1")
+    expect(csvEscape('+SUM(A1:A9)')).toBe("'+SUM(A1:A9)")
+    expect(csvEscape('@cmd')).toBe("'@cmd")
+    expect(csvEscape('=HYPERLINK("http://x","y")')).toContain("'=")
+    // Un número negativo legítimo no se toca.
+    expect(csvEscape('-15.50')).toBe('-15.50')
+    expect(csvEscape(-15.5)).toBe('-15.5')
+    // Un texto que empieza por guion pero no es número sí se neutraliza.
+    expect(csvEscape('-2+3')).toBe("'-2+3")
+  })
+
   it('nombra el archivo con el mes visible', () => {
     expect(csvFilename('finanzas-gastos', '2026-10')).toBe('finanzas-gastos-2026-10.csv')
   })
