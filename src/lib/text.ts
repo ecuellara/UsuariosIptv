@@ -1,3 +1,5 @@
+import { buildWhatsAppUrl, normalizeWaPhone } from './whatsapp'
+
 /** Utilidades de texto sin dependencias. */
 
 /** Sanea un término de búsqueda antes de interpolarlo en un filtro PostgREST. */
@@ -26,10 +28,8 @@ export function truncate(value: string | null | undefined, max: number): string 
   return `${value.slice(0, max - 1)}…`
 }
 
-/** Mensaje de WhatsApp con el número peruano en formato internacional. */
+/** Enlace de WhatsApp con el número normalizado. Sin mensaje, abre el chat. */
 export function whatsappUrl(phone: string, message?: string): string {
-  const digits = phone.replace(/\D/g, '')
-  const international = digits.length === 9 ? `51${digits}` : digits
-  const suffix = message ? `?text=${encodeURIComponent(message)}` : ''
-  return `https://wa.me/${international}${suffix}`
+  if (!message) return `https://wa.me/${normalizeWaPhone(phone)}`
+  return buildWhatsAppUrl(phone, message)
 }

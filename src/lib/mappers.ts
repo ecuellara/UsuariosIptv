@@ -6,9 +6,11 @@ import type {
   CashKind,
   CashMovement,
   CashMonthly,
+  ContactLog,
   Customer,
   CustomerSummary,
   Expense,
+  FollowupRecord,
   FollowupStatus,
   Payment,
   Plan,
@@ -19,6 +21,7 @@ import type {
   TokenPurchase,
   TokenStock,
   TokenSummary,
+  WhatsAppTemplate,
 } from '@/types/domain'
 import {
   isAccountStatus,
@@ -374,5 +377,66 @@ export function toCustomerSummary(
     nextExpiration: row.next_expiration,
     worstStatus: worst as AccountStatus | null,
     lastRenewalAt: row.last_renewal_at,
+  }
+}
+
+/* --- Seguimiento ----------------------------------------------------------- */
+
+export function toFollowupRecord(
+  row: Pick<
+    Tables<'renewal_followups'>,
+    'id' | 'account_id' | 'status' | 'last_contact_at' | 'next_followup_at' | 'notes'
+  >,
+): FollowupRecord {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    status: row.status,
+    lastContactAt: row.last_contact_at,
+    nextFollowupAt: row.next_followup_at,
+    notes: row.notes,
+  }
+}
+
+export function toWhatsAppTemplate(
+  row: Pick<
+    Tables<'whatsapp_templates'>,
+    'id' | 'key' | 'name' | 'body' | 'is_active' | 'updated_at'
+  >,
+): WhatsAppTemplate {
+  return {
+    id: row.id,
+    key: row.key,
+    name: row.name,
+    body: row.body,
+    isActive: row.is_active,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function toContactLog(
+  row: Pick<
+    Tables<'contact_logs'>,
+    | 'id'
+    | 'account_id'
+    | 'template_key'
+    | 'rendered_body'
+    | 'wa_url'
+    | 'event_type'
+    | 'followup_status_after'
+    | 'notes'
+    | 'created_at'
+  >,
+): ContactLog {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    templateKey: row.template_key,
+    renderedBody: row.rendered_body,
+    waUrl: row.wa_url,
+    eventType: row.event_type,
+    followupStatusAfter: row.followup_status_after,
+    notes: row.notes,
+    createdAt: row.created_at,
   }
 }

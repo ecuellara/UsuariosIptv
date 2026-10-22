@@ -145,14 +145,14 @@ function statusStyle(renewal: RenewalWithAccount['renewal']): Record<string, str
           >
             <span
               tabindex="0"
-              class="badge inline-flex max-w-36 cursor-help whitespace-normal text-left"
+              class="badge cursor-help whitespace-nowrap"
               :style="{
                 color: 'var(--color-warning-text)',
                 background: 'var(--color-warning-soft)',
                 borderColor: 'var(--color-warning-border)',
               }"
             >
-              Cobro sin renovación vigente
+              Cobro sin renovación
             </span>
           </AppTooltip>
         </div>

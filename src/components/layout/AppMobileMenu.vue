@@ -46,12 +46,6 @@ const themes = [
               <RouterLink :to="{ name: item.name }" class="nav-item" @click="open = false">
                 <AppIcon :name="item.icon" :size="20" />
                 <span class="truncate">{{ item.label }}</span>
-                <span
-                  v-if="item.soon"
-                  class="ml-auto rounded-xs border border-nav-border px-1 text-[10px] uppercase tracking-caps text-nav-muted"
-                >
-                  Pronto
-                </span>
               </RouterLink>
             </li>
           </ul>

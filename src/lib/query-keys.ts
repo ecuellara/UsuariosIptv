@@ -63,4 +63,16 @@ export const queryKeys = {
     byRenewal: (renewalId: string) =>
       ['payments', 'renewal', renewalId] as const,
   },
+  followups: {
+    all: ['followups'] as const,
+    inbox: (filter: unknown) => ['followups', 'inbox', filter] as const,
+    byAccount: (accountId: string) =>
+      ['followups', 'account', accountId] as const,
+    contacts: (accountId: string) =>
+      ['followups', 'contacts', accountId] as const,
+    templates: ['followups', 'templates'] as const,
+    plan: (accountId: string) => ['followups', 'plan', accountId] as const,
+    customer: (customerId: string) =>
+      ['followups', 'customer', customerId] as const,
+  },
 }

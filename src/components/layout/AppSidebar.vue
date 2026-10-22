@@ -51,12 +51,6 @@ function toggleTheme(): void {
             >
               {{ formatInteger(todayCount) }}
             </span>
-            <span
-              v-else-if="item.soon"
-              class="ml-auto rounded-xs border border-nav-border px-1 text-[10px] uppercase tracking-caps text-nav-muted"
-            >
-              Pronto
-            </span>
           </RouterLink>
         </li>
       </ul>

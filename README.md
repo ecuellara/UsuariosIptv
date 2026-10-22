@@ -3,8 +3,9 @@
 Panel administrativo privado (monousuario) para clientes, cuentas IPTV, vencimientos y caja.
 Vue 3 + TypeScript + Vite + Tailwind CSS v4 + Reka UI, con Supabase (Auth, PostgreSQL, RLS, RPC).
 
-Este README describe **el slice 1 de 2**: autenticación, shell, dashboard, clientes, cuentas IPTV
-y planes. El slice 2 (renovaciones, tokens, finanzas y seguimiento) se construye sobre esta base.
+Este README describe el panel completo: autenticación, shell, dashboard, clientes, cuentas IPTV,
+planes, renovaciones, tokens, finanzas y seguimiento con plantillas de WhatsApp. Ya no queda
+ningún módulo en `ModulePendingView`.
 
 ---
 
@@ -36,7 +37,7 @@ Nunca se publica `service_role` en el bundle ni en variables `VITE_*`.
 | `npm run build` | Build estático en `dist/` (apto para Cloudflare Pages) |
 | `npm run typecheck` | `vue-tsc --noEmit` |
 | `npm run lint` | ESLint 10 (flat config) sobre `src` y configs |
-| `npm run test` | Vitest: formato de dinero/fechas, teléfono, errores, texto, CSV y meses |
+| `npm run test` | Vitest: formato de dinero/fechas, teléfono, plantillas de WhatsApp, errores, texto, CSV y meses |
 | `npm run gen:types` | Regenera `src/types/database.ts` desde Supabase local |
 
 `src/types/database.ts` es **generado** (`supabase gen types`); no se edita a mano ni se lintea.
@@ -65,6 +66,7 @@ src/
     finance.ts             claves/labels de mes, rango de gastos y resta de caja
     csv.ts                 generador CSV mínimo (escape + descarga)
     text.ts                búsqueda saneada, iniciales, wa.me
+    whatsapp.ts            plantillas: variables, días restantes, normalización y wa.me
     mappers.ts             fila de vista/tabla → entidad de dominio (falla si falta un dato)
     query-client.ts        QueryClient + retry + handler de 401
     query-keys.ts          claves de caché centralizadas
@@ -75,6 +77,7 @@ src/
     dashboard.ts           métricas (COUNT de SQL) y movimientos de caja
     cash.ts                v_cash_movements (solo lectura)
     finance.ts             v_cash_monthly, v_profit_monthly y gastos (CRUD auditado)
+    followups.ts           bandeja (vista + followups), plantillas y contact_logs
     payments.ts            pagos de una renovación (solo lectura)
     profile.ts             profiles.display_name
     rpc.ts                 wrappers tipados de las 7 RPC + account_status/add_months
@@ -98,12 +101,14 @@ src/
                            AccountRenewalHistory, AccountActionsHost (estado y mutaciones)
     renewals/              RenewalSheet (flujo crítico), RecordPaymentModal,
                            RenewalDetailSheet, RenewalReverseDialog
+    followups/             FollowupComposer (WhatsApp + resultado) y
+                           AccountContactHistory (historial de la ficha)
     finance/               ExpenseFormModal (alta/edición de gastos)
     tokens/                PurchaseTokensModal, AdjustTokensModal
-    settings/              PlanRowEditor
+    settings/              PlanRowEditor, WhatsAppTemplateCard
   views/
     LoginView, DashboardView, CustomersView, CustomerDetailView, AccountsView,
-    RenewalsView, TokensView, FinanceView, SettingsView, ModulePendingView (seguimiento),
+    FollowupView, RenewalsView, TokensView, FinanceView, SettingsView,
     ForbiddenView, NotFoundView
   lib/*.test.ts            pruebas unitarias
 ```
@@ -172,10 +177,9 @@ está dentro de `outflow` y no se suma aparte. El detalle completo vive en `/fin
 
 ### Rutas
 
-`/renovaciones`, `/tokens` y `/finanzas` ya están implementadas. `/seguimiento` sigue con
-`ModulePendingView` y `meta.pending`; al implementarla, se reemplaza el componente y se quita
-`pending` del meta. La navegación (`router/navigation.ts`) ya la incluye con la etiqueta «Pronto»;
-al activarla, quitar `soon: true`. Finanzas ya no lleva `soon`.
+Todas las rutas del panel están implementadas. `/seguimiento` usa `FollowupView`; se retiraron
+`ModulePendingView`, `meta.pending` y la etiqueta «Pronto» de la navegación. Finanzas tampoco
+lleva `soon`.
 
 ### Renovaciones y tokens (slice 2A)
 
@@ -242,11 +246,47 @@ al activarla, quitar `soon: true`. Finanzas ya no lleva `soon`.
    pagos asociados y acciones. `RecordPaymentModal` y `RenewalReverseDialog` son los mismos del
    historial de la cuenta: no hay dos copias del cobro ni de la reversión.
 3. **Revertida con cobro.** Si `is_reversed && amount_paid > 0`, el listado muestra el badge «Cobro
-   sin renovación vigente» (tooltip accesible) y el diálogo de reversión advierte: «Esta renovación
-   tiene cobros por S/ X. La reversión no devuelve el dinero.». El pago se conserva y sigue en caja.
+   sin renovación» (tooltip accesible con la explicación completa) y el diálogo de reversión
+   advierte: «Esta renovación tiene cobros por S/ X. La reversión no devuelve el dinero.». El pago
+   se conserva y sigue en caja.
 4. **Tablas.** `DataTable` permite scroll horizontal, deja la columna de acciones sticky a la
    derecha en escritorio (fondo opaco + separación) y mantiene la conversión a tarjetas a ≤640 px
    de contenedor. Las celdas con `mobileLabel` muestran su etiqueta en la tarjeta.
+
+### Seguimiento y WhatsApp (slice 2B-2)
+
+1. **Bandeja de trabajo.** `/seguimiento` cruza `v_account_status` (cliente, teléfono, usuario,
+   vencimiento, estado y `followup_status`) con `renewal_followups` (`last_contact_at`,
+   `next_followup_at`). Los filtros de vigencia, estado de seguimiento y búsqueda se resuelven en
+   PostgREST; el cruce y el orden final, en el cliente. El orden usa `status_rank` de SQL y luego
+   `next_followup_at` ascendente (sin programar va al final). Las cuentas archivadas no entran.
+   La bandeja tiene un tope de 1000 filas y avisa si el total lo supera: no oculta datos en
+   silencio.
+2. **La app no envía nada.** `FollowupComposer` elige una plantilla activa, muestra el texto
+   renderizado y abre `wa.me` en otra pestaña. Al abrir se registra `ENLACE_ABIERTO` con
+   `rendered_body` y `wa_url`; después el admin confirma `MENSAJE_ENVIADO` (estado `CONTACTADO`).
+   «Registrar respuesta» deja `RESPUESTA_RECIBIDA` y el estado `EN_CONVERSACION`, con notas y
+   próxima acción opcional.
+3. **Snapshot, no plantilla viva.** Lo persistido es el mensaje renderizado y la URL que envía el
+   RPC. Editar una plantilla no reescribe `contact_logs`; el historial conserva el texto exacto.
+4. **Idempotencia por diálogo.** El compositor genera tres claves al abrir (`ENLACE_ABIERTO`,
+   `MENSAJE_ENVIADO`, `RESPUESTA_RECIBIDA`) y las reutiliza en reintentos. El botón queda en
+   `loading` y la función también ignora el segundo clic: un doble clic produce un solo
+   `contact_logs`.
+5. **Variables.** `{nombre}`, `{apellido}`, `{usuario}`, `{plan}`, `{fecha_vencimiento}` y
+   `{dias_restantes}`. `{plan}` es el de la última renovación **no revertida** o «sin plan»;
+   `{fecha_vencimiento}` va en `dd/MM/yyyy` de Lima; `{dias_restantes}` es el número de
+   `days_left`, `0` el mismo día y «vencido hace N días» en el pasado (nunca un negativo crudo).
+   Una variable desconocida se deja tal cual y se avisa en la vista previa.
+6. **Teléfono.** 9 dígitos que empiezan por 9 → se antepone `51`; 11 con `51` → se usa tal cual.
+   El enlace se codifica completo (`encodeURIComponent`), incluidos saltos de línea y `&`.
+7. **Plantillas en Configuración.** Editor de nombre, cuerpo y activa/inactiva con vista previa de
+   ejemplo. Se guarda directo en `whatsapp_templates` (la RLS lo permite; no hay RPC). El cuerpo
+   vacío y las variables no permitidas se rechazan antes de Postgres; `{password}` tiene mensaje
+   propio y además el `CHECK` de la tabla. No hay envío ni reescritura de historial.
+8. **Contactos en la ficha.** `AccountContactHistory` lista `contact_logs` (fecha, plantilla,
+   evento, estado resultante, notas y mensaje snapshot) en solo lectura. La «próxima acción» es la
+   de `renewal_followups`, porque `contact_logs` no guarda esa columna.
 
 ---
 
@@ -254,10 +294,9 @@ al activarla, quitar `soon: true`. Finanzas ya no lleva `soon`.
 
 | # | Pendiente | Impacto | Quién |
 |---|---|---|---|
-| 1 | Seguimiento y WhatsApp | `/seguimiento` sigue en `ModulePendingView`; contact_logs y templates esperan la 2B-2 | `frontend-web` (2B-2) |
-| 2 | Pruebas E2E en el repo | La verificación visual se hizo con Playwright sobre Chrome local, fuera del repo | `testing-e2e` |
-| 3 | Plantillas de WhatsApp | No están en el alcance de la 2B | 2B-2 |
-| 4 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
+| 1 | Pruebas E2E en el repo | La verificación de este slice se hizo con Playwright sobre Chrome local, fuera del repo | `testing-e2e` |
+| 2 | Bandeja con cruce en cliente | Los filtros van a PostgREST, pero el cruce con `renewal_followups` y el orden por próxima acción se resuelven en memoria (tope 1000). Con más volumen conviene una vista SQL | `db-architect` / `frontend-web` |
+| 3 | Densidad compacta en tablas editables | Las filas de plan no cambian de alto con la densidad | cosmético |
 
 ### Desviaciones conscientes del documento de diseño
 
@@ -277,6 +316,13 @@ En la verificación 2B se creó un gasto de prueba para demostrar el efecto en c
 `audit_log` permanecen los eventos `EXPENSE_CREATED`, `EXPENSE_UPDATED` y `EXPENSE_DELETED` de
 esa prueba. No se tocó ninguna renovación, pago ni token.
 
+En la verificación 2B-2 se usaron las dos cuentas de prueba activas que ya existían
+(`ui_slice2a_565883` y `e2e_slice2a_197010`) para abrir `wa.me`, confirmar el envío y registrar
+una respuesta. Quedaron 6 `contact_logs` (3 por cuenta) y los seguimientos en
+`EN_CONVERSACION`; no se creó ni borró ninguna cuenta. La plantilla `RECORDATORIO` se editó y se
+restauró por la UI; su texto final es el del seed y el `rendered_body` de los logs previos no
+cambió. No se ejecutó `db reset` ni se tocó `supabase/**`.
+
 ---
 
 ## 6. Verificación ejecutada
@@ -284,7 +330,7 @@ esa prueba. No se tocó ninguna renovación, pago ni token.
 ```bash
 npm run typecheck   # sin salida = sin errores
 npm run lint        # sin salida = sin errores
-npm run test        # 39 pruebas en 5 archivos
+npm run test        # 54 pruebas en 6 archivos
 npm run build       # dist/ generado (incluye robots.txt)
 ```
 
@@ -298,3 +344,23 @@ Verificación del slice 2B: tablas a 1024/1280/1440 (acciones sticky y alcanzabl
 gasto con `v_cash_monthly`/`v_profit_monthly` antes y después; exportación CSV; detalle de
 renovación con pagos y aviso de reversión con cobro; clientes con agregados y búsqueda en
 servidor. El detalle y los números están en el informe de la entrega.
+
+Verificación del slice 2B-2 (Supabase local + Playwright/Chrome, sin red externa: `wa.me` se
+intercepta y se comprueba la URL generada):
+
+- Abrir WhatsApp para una cuenta → 1 `contact_logs` `ENLACE_ABIERTO` con `rendered_body` y
+  `wa_url`; `last_contact_at` no cambia.
+- «Marcar como enviado» → estado `CONTACTADO`, `last_contact_at` actualizado y
+  `contact_logs` `MENSAJE_ENVIADO`.
+- Doble clic en «Marcar como enviado» → un solo `MENSAJE_ENVIADO` (idempotencia + guarda de
+  `loading`).
+- «Registrar respuesta» → `RESPUESTA_RECIBIDA`, estado `EN_CONVERSACION`, notas y
+  `next_followup_at` (28/10/2026 08:00 Lima).
+- Editar `RECORDATORIO` y comprobar por SQL que el `rendered_body` anterior conserva su MD5 y
+  longitud (133 caracteres). Intentar `{password}` → rechazo con mensaje y sin cambio en la DB;
+  después se restauró el texto original.
+- Bandeja a 375/768/1024/1440: sin desborde del documento; a 1440 la tabla cabe
+  (`scrollWidth` 1122 / `clientWidth` 1122), a 768/1024 la tabla se desplaza dentro de su
+  contenedor con acciones sticky. Consola sin errores.
+- `Renovaciones`: el badge «Cobro sin renovación» mide 22 px de alto y las filas bajan a ~65 px
+  (antes ~115 px), con el tooltip completo intacto.

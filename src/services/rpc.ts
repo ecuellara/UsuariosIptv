@@ -4,8 +4,7 @@ import type { Enums } from '@/types/domain'
 
 /* =============================================================================
    RPC: única vía de escritura para renewals, payments, token_*, audit_log y
-   contact_logs (ADR-008). Este archivo queda preparado para el slice 2.
-   Reglas de uso:
+   contact_logs (ADR-008). Reglas de uso:
    - `idempotencyKey` se genera UNA vez al abrir el formulario
      (`crypto.randomUUID()`) y se reutiliza en cada reintento.
    - Los errores llegan con prefijo estable; `toUserMessage` los traduce.

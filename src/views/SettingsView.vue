@@ -12,11 +12,13 @@ import { formatDate } from '@/lib/dates'
 import { queryKeys } from '@/lib/query-keys'
 import { getAppSettings, listPlans, updateAppSettings } from '@/services/plans'
 import { updateDisplayName } from '@/services/profile'
+import { listWhatsAppTemplates } from '@/services/followups'
 import { accountStatus } from '@/services/rpc'
 import { usePreferencesStore, type DensityPreference, type ThemePreference } from '@/stores/preferences'
 import { useSessionStore } from '@/stores/session'
 import { statusLabel } from '@/lib/format'
 import PlanRowEditor from '@/components/settings/PlanRowEditor.vue'
+import WhatsAppTemplateCard from '@/components/settings/WhatsAppTemplateCard.vue'
 
 const queryClient = useQueryClient()
 const toast = useToast()
@@ -169,6 +171,11 @@ async function saveRules(): Promise<void> {
 
 const plansQuery = useQuery({ queryKey: queryKeys.plans.all, queryFn: listPlans })
 
+const templatesQuery = useQuery({
+  queryKey: queryKeys.followups.templates,
+  queryFn: listWhatsAppTemplates,
+})
+
 function resetRules(): void {
   rules.urgentDays = String(savedSettings.value?.urgentDays ?? 3)
   rules.warningDays = String(savedSettings.value?.warningDays ?? 7)
@@ -204,6 +211,7 @@ const sections = [
   { id: 'perfil', label: 'Perfil' },
   { id: 'reglas', label: 'Reglas de vencimiento' },
   { id: 'planes', label: 'Planes' },
+  { id: 'plantillas', label: 'Plantillas de WhatsApp' },
   { id: 'apariencia', label: 'Apariencia' },
 ]
 </script>
@@ -421,6 +429,54 @@ const sections = [
           </p>
         </section>
 
+        <!-- Plantillas de WhatsApp -->
+        <section id="plantillas" class="panel p-5" aria-labelledby="plantillas-titulo">
+          <h2 id="plantillas-titulo" class="text-xl font-semibold text-content">
+            Plantillas de WhatsApp
+          </h2>
+          <p class="mt-1 text-sm text-content-muted">
+            Textos que se preparan en Seguimiento. La app solo abre el chat: no envía mensajes.
+            Editar una plantilla no reescribe los contactos ya registrados.
+          </p>
+
+          <AppAlert class="mt-3" variant="info" title="El historial queda congelado">
+            Cada contacto guarda el mensaje exacto que se abrió. Cambiar una plantilla solo
+            afecta a los mensajes nuevos.
+          </AppAlert>
+
+          <div v-if="templatesQuery.isPending.value" class="mt-4 flex flex-col gap-3" aria-busy="true">
+            <AppSkeleton v-for="index in 4" :key="index" width="100%" height="96px" />
+          </div>
+
+          <AppAlert
+            v-else-if="templatesQuery.isError.value"
+            class="mt-4"
+            variant="danger"
+            title="No se pudieron cargar las plantillas"
+          >
+            <template #actions>
+              <AppButton size="sm" variant="secondary" @click="templatesQuery.refetch()">
+                Reintentar
+              </AppButton>
+            </template>
+          </AppAlert>
+
+          <p
+            v-else-if="(templatesQuery.data.value ?? []).length === 0"
+            class="mt-4 text-sm text-danger-text"
+          >
+            No hay plantillas en la base. Revisa el seed o crea una desde el panel de Supabase.
+          </p>
+
+          <div v-else class="mt-4 flex flex-col gap-4">
+            <WhatsAppTemplateCard
+              v-for="template in templatesQuery.data.value ?? []"
+              :key="template.id"
+              :template="template"
+            />
+          </div>
+        </section>
+
         <!-- Apariencia -->
         <section id="apariencia" class="panel p-5" aria-labelledby="apariencia-titulo">
           <h2 id="apariencia-titulo" class="text-xl font-semibold text-content">Apariencia</h2>
@@ -468,8 +524,8 @@ const sections = [
         </section>
 
         <p class="text-xs text-content-muted">
-          Los catálogos de plantillas de WhatsApp y la exportación de datos se habilitan en la
-          siguiente entrega.
+          La exportación de datos se habilitará en una entrega posterior. Las plantillas de
+          WhatsApp ya se editan aquí y no alteran el historial de contactos.
         </p>
       </div>
     </div>

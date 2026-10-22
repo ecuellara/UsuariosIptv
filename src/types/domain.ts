@@ -48,6 +48,7 @@ export type PaymentMethod = Enums<'payment_method'>
 export type MovementType = Enums<'token_movement_type'>
 export type RenewalOperationType = Enums<'renewal_operation_type'>
 export type ExpenseCategory = Enums<'expense_category'>
+export type ContactEventType = Enums<'contact_event_type'>
 export type CashDirection = 'IN' | 'OUT'
 export type CashKind = 'COBRO' | 'GASTO' | 'COMPRA_TOKENS'
 
@@ -293,4 +294,54 @@ export interface AccountListFilter {
   staleOnly?: boolean
   page?: number
   pageSize?: number
+}
+
+/* --- Seguimiento y WhatsApp -----------------------------------------------
+   `renewal_followups` es el estado actual (solo lectura en el cliente) y
+   `contact_logs` el historial. Ambos se mueven únicamente por
+   `rpc_update_followup` (ADR-008). */
+
+export interface FollowupRecord {
+  id: string
+  accountId: string
+  status: FollowupStatus
+  lastContactAt: string | null
+  nextFollowupAt: string | null
+  notes: string | null
+}
+
+export interface FollowupInboxRow {
+  account: Account
+  followup: FollowupRecord
+}
+
+/** Ventanas de vencimiento de la bandeja, resueltas contra `v_account_status`. */
+export type FollowupWindow = 'TODAY' | 'THREE' | 'WEEK' | 'OVERDUE' | 'ALL'
+
+export interface FollowupInboxFilter {
+  status?: FollowupStatus | 'TODOS'
+  window?: FollowupWindow
+  pendingOnly?: boolean
+  search?: string
+}
+
+export interface WhatsAppTemplate {
+  id: string
+  key: string
+  name: string
+  body: string
+  isActive: boolean
+  updatedAt: string
+}
+
+export interface ContactLog {
+  id: string
+  accountId: string | null
+  templateKey: string | null
+  renderedBody: string | null
+  waUrl: string | null
+  eventType: ContactEventType
+  followupStatusAfter: FollowupStatus | null
+  notes: string | null
+  createdAt: string
 }

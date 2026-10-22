@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import AccountRenewalHistory from '@/components/accounts/AccountRenewalHistory.vue'
+import AccountContactHistory from '@/components/followups/AccountContactHistory.vue'
 import AppAlert from '@/components/ui/AppAlert.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -145,6 +146,10 @@ async function copyUsername(): Promise<void> {
           La contraseña se gestiona fuera de este panel.
         </template>
         No se almacena aquí (ADR-002).
+      </section>
+
+      <section class="panel p-4">
+        <AccountContactHistory :account-id="account.id" />
       </section>
 
       <section class="panel p-4">

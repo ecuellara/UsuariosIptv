@@ -102,6 +102,8 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   app_settings_umbrales_chk:
     'Los días de urgencia deben ser menores que los de aviso.',
   plans_devices_check: 'Los dispositivos permitidos son 1 o 3.',
+  whatsapp_templates_sin_password_chk:
+    'La plantilla no puede contener {password}: el panel nunca guarda ni envía contraseñas.',
 }
 
 function matchPrefix(message: string): string | null {

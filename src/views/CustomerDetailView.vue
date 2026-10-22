@@ -291,8 +291,9 @@ async function toggleArchive(): Promise<void> {
       </section>
 
       <AppAlert variant="info" title="Historial y seguimiento">
-        Las renovaciones, los cobros y el historial de contacto de este cliente se habilitan en
-        la siguiente entrega. Los importes y márgenes se calculan en SQL.
+        El historial de renovaciones, cobros y contactos vive en la ficha de cada cuenta.
+        Ábrela desde la lista de cuentas de este cliente. Los importes y márgenes se calculan
+        en SQL.
       </AppAlert>
     </template>
 

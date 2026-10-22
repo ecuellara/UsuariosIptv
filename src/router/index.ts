@@ -6,11 +6,6 @@ declare module 'vue-router' {
     title: string
     /** Rutas que se pueden abrir sin sesión (solo /login). */
     public?: boolean
-    /** Contenido informativo del módulo planificado (slice 2). */
-    pending?: {
-      summary: string
-      items: string[]
-    }
   }
 }
 
@@ -54,19 +49,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/seguimiento',
     name: 'followup',
-    component: () => import('@/views/ModulePendingView.vue'),
-    meta: {
-      title: 'Seguimiento',
-      pending: {
-        summary:
-          'Aquí vivirán las conversaciones de renovación: a quién se escribió, qué respondió y cuándo toca volver a contactarlo.',
-        items: [
-          'Bandeja por estado de seguimiento (pendiente, contactado, en conversación, confirmado).',
-          'Historial de contactos con el mensaje enviado como snapshot.',
-          'Registrar respuesta y próximo seguimiento por RPC auditado.',
-        ],
-      },
-    },
+    component: () => import('@/views/FollowupView.vue'),
+    meta: { title: 'Seguimiento' },
   },
   {
     path: '/renovaciones',
